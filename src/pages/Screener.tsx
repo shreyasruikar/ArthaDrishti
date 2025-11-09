@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +36,7 @@ type SortField = "name" | "price" | "pe" | "marketCap" | "roe" | "debtRatio" | "
 type SortDirection = "asc" | "desc" | null;
 
 const Screener = () => {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({
     sector: "All",
     peMin: "",
@@ -342,7 +344,11 @@ const Screener = () => {
                     </TableRow>
                   ) : (
                     filteredAndSortedData.map((stock) => (
-                      <TableRow key={stock.id} className="hover:bg-muted/50">
+                      <TableRow 
+                        key={stock.id} 
+                        className="hover:bg-muted/50 cursor-pointer"
+                        onClick={() => navigate(`/stock/${stock.symbol}`)}
+                      >
                         <TableCell>
                           <div>
                             <div className="font-medium">{stock.name}</div>
