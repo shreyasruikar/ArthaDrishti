@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
 
 // Sample stock data
 const stockData = [
@@ -51,6 +52,7 @@ const Screener = () => {
 
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -82,6 +84,26 @@ const Screener = () => {
     });
     setSortField(null);
     setSortDirection(null);
+  };
+
+  const handleSelectStock = (symbol: string) => {
+    setSelectedStocks(prev => 
+      prev.includes(symbol) 
+        ? prev.filter(s => s !== symbol)
+        : [...prev, symbol]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedStocks.length === filteredAndSortedData.length) {
+      setSelectedStocks([]);
+    } else {
+      setSelectedStocks(filteredAndSortedData.map(stock => stock.symbol));
+    }
+  };
+
+  const handleCompare = () => {
+    navigate(`/compare?stocks=${selectedStocks.join(',')}`);
   };
 
   const filteredAndSortedData = useMemo(() => {
@@ -253,15 +275,29 @@ const Screener = () => {
         {/* Results Section */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              Results <span className="text-muted-foreground">({filteredAndSortedData.length} stocks)</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                Results <span className="text-muted-foreground">({filteredAndSortedData.length} stocks)</span>
+              </CardTitle>
+              {selectedStocks.length > 0 && (
+                <Button onClick={handleCompare} className="gap-2">
+                  <GitCompare className="h-4 w-4" />
+                  Compare ({selectedStocks.length})
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox 
+                        checked={selectedStocks.length === filteredAndSortedData.length && filteredAndSortedData.length > 0}
+                        onCheckedChange={handleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>
                       <Button
                         variant="ghost"
@@ -338,7 +374,7 @@ const Screener = () => {
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         No stocks match your criteria. Try adjusting the filters.
                       </TableCell>
                     </TableRow>
@@ -346,10 +382,18 @@ const Screener = () => {
                     filteredAndSortedData.map((stock) => (
                       <TableRow 
                         key={stock.id} 
-                        className="hover:bg-muted/50 cursor-pointer"
-                        onClick={() => navigate(`/stock/${stock.symbol}`)}
+                        className="hover:bg-muted/50"
                       >
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox 
+                            checked={selectedStocks.includes(stock.symbol)}
+                            onCheckedChange={() => handleSelectStock(stock.symbol)}
+                          />
+                        </TableCell>
+                        <TableCell 
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/stock/${stock.symbol}`)}
+                        >
                           <div>
                             <div className="font-medium">{stock.name}</div>
                             <div className="text-sm text-muted-foreground">{stock.symbol}</div>
