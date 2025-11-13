@@ -1,4 +1,5 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Download, FileSpreadsheet } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 // Sample stock data (same as Screener)
 const stockData = [
@@ -78,11 +83,148 @@ const chartConfig = {
 const Comparison = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [isExporting, setIsExporting] = useState(false);
+  const comparisonRef = useRef<HTMLDivElement>(null);
   const stockSymbols = searchParams.get("stocks")?.split(",") || [];
   
   const selectedStocks = stockData.filter(stock => stockSymbols.includes(stock.symbol));
   const historicalData = generateHistoricalData(stockSymbols);
   const financialData = generateFinancialData(stockSymbols);
+
+  const handleExportPDF = async () => {
+    if (!comparisonRef.current) return;
+    
+    setIsExporting(true);
+    toast.info("Generating PDF... This may take a moment.");
+    
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 15;
+
+      // Title
+      pdf.setFontSize(18);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text("Stock Comparison Report", pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: "center" });
+      yPosition += 15;
+
+      // Stock Overview
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text("Selected Stocks", 15, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      selectedStocks.forEach((stock) => {
+        pdf.text(`${stock.name} (${stock.symbol}) - ${stock.sector}`, 20, yPosition);
+        yPosition += 5;
+      });
+      yPosition += 10;
+
+      // Capture charts and tables
+      const sections = comparisonRef.current.querySelectorAll(".export-section");
+      
+      for (const section of Array.from(sections)) {
+        if (yPosition > pageHeight - 40) {
+          pdf.addPage();
+          yPosition = 15;
+        }
+
+        const canvas = await html2canvas(section as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        const imgWidth = pageWidth - 30;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        if (yPosition + imgHeight > pageHeight - 15) {
+          pdf.addPage();
+          yPosition = 15;
+        }
+
+        pdf.addImage(imgData, "PNG", 15, yPosition, imgWidth, imgHeight);
+        yPosition += imgHeight + 10;
+      }
+
+      pdf.save(`stock-comparison-${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast.error("Failed to export PDF. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // Stock Overview Sheet
+      const overviewData = selectedStocks.map((stock) => ({
+        Name: stock.name,
+        Symbol: stock.symbol,
+        Sector: stock.sector,
+        Price: stock.price,
+        "Change (%)": stock.change,
+        "P/E Ratio": stock.pe,
+        "Market Cap (Cr)": stock.marketCap,
+        "ROE (%)": stock.roe,
+        "Debt Ratio": stock.debtRatio,
+      }));
+      const overviewSheet = XLSX.utils.json_to_sheet(overviewData);
+      XLSX.utils.book_append_sheet(wb, overviewSheet, "Stock Overview");
+
+      // Historical Price Data Sheet
+      const priceData = historicalData.map((data) => {
+        const row: any = { Month: data.month };
+        stockSymbols.forEach((symbol) => {
+          row[symbol] = data[symbol];
+        });
+        return row;
+      });
+      const priceSheet = XLSX.utils.json_to_sheet(priceData);
+      XLSX.utils.book_append_sheet(wb, priceSheet, "Price Trends");
+
+      // Financial Data Sheet
+      const finData = financialData.map((data: any) => ({
+        Symbol: data.symbol,
+        "Revenue (Cr)": data.revenue,
+        "Profit (Cr)": data.profit,
+        "EPS (₹)": data.eps,
+      }));
+      const finSheet = XLSX.utils.json_to_sheet(finData);
+      XLSX.utils.book_append_sheet(wb, finSheet, "Financials");
+
+      // Comparison Metrics Sheet
+      const metrics = [
+        { Metric: "Current Price", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, `₹${s.price}`])) },
+        { Metric: "P/E Ratio", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, s.pe])) },
+        { Metric: "Market Cap (Cr)", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, `₹${s.marketCap}`])) },
+        { Metric: "ROE (%)", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, `${s.roe}%`])) },
+        { Metric: "Debt Ratio", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, s.debtRatio])) },
+        { Metric: "Day Change (%)", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, `${s.change}%`])) },
+        { Metric: "Sector", ...Object.fromEntries(selectedStocks.map((s) => [s.symbol, s.sector])) },
+      ];
+      const metricsSheet = XLSX.utils.json_to_sheet(metrics);
+      XLSX.utils.book_append_sheet(wb, metricsSheet, "Key Metrics");
+
+      XLSX.writeFile(wb, `stock-comparison-${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast.success("Excel file exported successfully!");
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast.error("Failed to export Excel. Please try again.");
+    }
+  };
 
   if (selectedStocks.length === 0) {
     return (
@@ -105,8 +247,8 @@ const Comparison = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <main className="flex-1 container mx-auto px-4 py-8" ref={comparisonRef}>
+        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate("/screener")}>
               <ArrowLeft className="h-5 w-5" />
@@ -115,6 +257,24 @@ const Comparison = () => {
               <h1 className="text-3xl font-bold text-foreground">Stock Comparison</h1>
               <p className="text-muted-foreground">Comparing {selectedStocks.length} stocks</p>
             </div>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleExportExcel} 
+              variant="outline"
+              className="gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
+            <Button 
+              onClick={handleExportPDF} 
+              disabled={isExporting}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isExporting ? "Generating..." : "Export PDF"}
+            </Button>
           </div>
         </div>
 
@@ -163,7 +323,7 @@ const Comparison = () => {
                 </TabsList>
               </CardHeader>
               <CardContent>
-                <TabsContent value="metrics" className="mt-0">
+                <TabsContent value="metrics" className="mt-0 export-section">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -230,7 +390,7 @@ const Comparison = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="price" className="mt-0">
+                <TabsContent value="price" className="mt-0 export-section">
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-lg font-semibold mb-4">6-Month Price Trend Comparison</h3>
@@ -260,7 +420,7 @@ const Comparison = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="financials" className="mt-0">
+                <TabsContent value="financials" className="mt-0 export-section">
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold mb-4">Revenue Comparison (₹ Crores)</h3>
