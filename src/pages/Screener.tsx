@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WatchlistButton from "@/components/WatchlistButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -298,6 +299,7 @@ const Screener = () => {
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead>
                       <Button
                         variant="ghost"
@@ -374,7 +376,7 @@ const Screener = () => {
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         No stocks match your criteria. Try adjusting the filters.
                       </TableCell>
                     </TableRow>
@@ -389,6 +391,9 @@ const Screener = () => {
                             checked={selectedStocks.includes(stock.symbol)}
                             onCheckedChange={() => handleSelectStock(stock.symbol)}
                           />
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <WatchlistButton symbol={stock.symbol} variant="ghost" size="icon" />
                         </TableCell>
                         <TableCell 
                           className="cursor-pointer"

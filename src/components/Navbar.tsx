@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp } from "lucide-react";
+import { Search, TrendingUp, Star, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
+  const { user, signOut } = useAuth();
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -18,6 +21,11 @@ const Navbar = () => {
           <Link to="/screener" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Screener
           </Link>
+          {user && (
+            <Link to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Watchlist
+            </Link>
+          )}
           <a href="/#about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             About
           </a>
@@ -27,9 +35,24 @@ const Navbar = () => {
           <Button variant="ghost" size="icon">
             <Search className="h-5 w-5" />
           </Button>
-          <Button variant="default">
-            Get Started
-          </Button>
+          {user ? (
+            <>
+              <Link to="/watchlist">
+                <Button variant="ghost" size="icon">
+                  <Star className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Button variant="ghost" size="icon" onClick={() => signOut()}>
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </>
+          ) : (
+            <Link to="/auth">
+              <Button variant="default">
+                Sign In
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </nav>
