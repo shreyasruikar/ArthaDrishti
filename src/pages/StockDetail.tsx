@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WatchlistButton from "@/components/WatchlistButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -156,9 +157,12 @@ const StockDetail = () => {
               <div className="text-3xl md:text-4xl font-bold text-foreground mb-1">
                 ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
-              <div className={`flex items-center gap-1 text-lg ${stock.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {stock.change >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                <span>{stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)</span>
+              <div className="flex flex-col md:items-end gap-2">
+                <div className={`flex items-center gap-1 text-lg ${stock.change >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {stock.change >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                  <span>{stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)</span>
+                </div>
+                <WatchlistButton symbol={stock.symbol} />
               </div>
             </div>
           </div>
