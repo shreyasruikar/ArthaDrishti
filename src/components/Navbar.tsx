@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Search, TrendingUp, Star, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import GetStartedModal from "@/components/GetStartedModal";
-import { useAuthContext } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
-  const { user, logout } = useAuthContext();
+  const { user, signOut } = useAuth();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -43,8 +43,8 @@ const Navbar = () => {
               </Link>
 
               <div className="flex items-center gap-3">
-                <span className="text-sm">{user.name ?? user.email}</span>
-                <Button variant="ghost" size="icon" onClick={() => logout().catch(() => {})}>
+                <span className="text-sm">{user.email}</span>
+                <Button variant="ghost" size="icon" onClick={() => signOut().catch(() => {})}>
                   <LogOut className="h-5 w-5" />
                 </Button>
               </div>
