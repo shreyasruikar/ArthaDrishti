@@ -11,7 +11,7 @@ import Comparison from "./pages/Comparison";
 import Auth from "./pages/Auth";
 import Watchlist from "./pages/Watchlist";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
