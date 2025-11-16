@@ -20,75 +20,59 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
-    if (!apiKey) {
-      console.error('ALPHA_VANTAGE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     console.log(`Fetching quote for symbol: ${symbol}`);
 
-    // Get global quote
-    const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
+    // Get quote data from Yahoo Finance
+    const quoteUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
     const quoteResponse = await fetch(quoteUrl);
     const quoteData = await quoteResponse.json();
-    
-    console.log('Alpha Vantage Quote Response:', JSON.stringify(quoteData));
 
-    if (quoteData['Error Message']) {
+    if (quoteData.chart?.error) {
       return new Response(
         JSON.stringify({ error: 'Invalid symbol or API error' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (quoteData['Note']) {
-      return new Response(
-        JSON.stringify({ error: 'API rate limit reached. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const quote = quoteData['Global Quote'];
-    if (!quote || Object.keys(quote).length === 0) {
+    const result = quoteData.chart?.result?.[0];
+    if (!result) {
       return new Response(
         JSON.stringify({ error: 'No data found for this symbol' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get company overview for additional details
-    const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${apiKey}`;
-    const overviewResponse = await fetch(overviewUrl);
-    const overview = await overviewResponse.json();
-    
-    console.log('Alpha Vantage Overview Response:', JSON.stringify(overview));
+    const meta = result.meta;
+    const quote = result.indicators?.quote?.[0];
+
+    // Get additional company info
+    const summaryUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=summaryDetail,price,defaultKeyStatistics,assetProfile`;
+    const summaryResponse = await fetch(summaryUrl);
+    const summaryData = await summaryResponse.json();
+    const quoteSummary = summaryData.quoteSummary?.result?.[0];
 
     const stockData = {
-      symbol: quote['01. symbol'],
-      price: parseFloat(quote['05. price']),
-      change: parseFloat(quote['09. change']),
-      changePercent: parseFloat(quote['10. change percent'].replace('%', '')),
-      open: parseFloat(quote['02. open']),
-      high: parseFloat(quote['03. high']),
-      low: parseFloat(quote['04. low']),
-      volume: parseInt(quote['06. volume']),
-      previousClose: parseFloat(quote['08. previous close']),
-      name: overview.Name || symbol,
-      sector: overview.Sector || 'N/A',
-      marketCap: overview.MarketCapitalization ? parseInt(overview.MarketCapitalization) : null,
-      pe: overview.PERatio ? parseFloat(overview.PERatio) : null,
-      pb: overview.PriceToBookRatio ? parseFloat(overview.PriceToBookRatio) : null,
-      roe: overview.ReturnOnEquityTTM ? parseFloat(overview.ReturnOnEquityTTM) * 100 : null,
-      dividendYield: overview.DividendYield ? parseFloat(overview.DividendYield) * 100 : null,
-      eps: overview.EPS ? parseFloat(overview.EPS) : null,
-      beta: overview.Beta ? parseFloat(overview.Beta) : null,
-      week52High: overview['52WeekHigh'] ? parseFloat(overview['52WeekHigh']) : null,
-      week52Low: overview['52WeekLow'] ? parseFloat(overview['52WeekLow']) : null,
-      description: overview.Description || '',
+      symbol: meta.symbol,
+      price: meta.regularMarketPrice || 0,
+      change: (meta.regularMarketPrice - meta.previousClose) || 0,
+      changePercent: ((meta.regularMarketPrice - meta.previousClose) / meta.previousClose * 100) || 0,
+      open: quote?.open?.[0] || meta.regularMarketPrice,
+      high: quote?.high?.[0] || meta.regularMarketPrice,
+      low: quote?.low?.[0] || meta.regularMarketPrice,
+      volume: quote?.volume?.[0] || 0,
+      previousClose: meta.previousClose || 0,
+      name: quoteSummary?.price?.longName || quoteSummary?.price?.shortName || symbol,
+      sector: quoteSummary?.assetProfile?.sector || 'N/A',
+      marketCap: quoteSummary?.price?.marketCap || quoteSummary?.summaryDetail?.marketCap || null,
+      pe: quoteSummary?.summaryDetail?.trailingPE || null,
+      pb: quoteSummary?.defaultKeyStatistics?.priceToBook || null,
+      roe: quoteSummary?.defaultKeyStatistics?.returnOnEquity ? quoteSummary.defaultKeyStatistics.returnOnEquity * 100 : null,
+      dividendYield: quoteSummary?.summaryDetail?.dividendYield ? quoteSummary.summaryDetail.dividendYield * 100 : null,
+      eps: quoteSummary?.defaultKeyStatistics?.trailingEps || null,
+      beta: quoteSummary?.defaultKeyStatistics?.beta || null,
+      week52High: quoteSummary?.summaryDetail?.fiftyTwoWeekHigh || null,
+      week52Low: quoteSummary?.summaryDetail?.fiftyTwoWeekLow || null,
+      description: quoteSummary?.assetProfile?.longBusinessSummary || '',
     };
 
     console.log('Successfully fetched stock data:', stockData);
