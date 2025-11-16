@@ -1,13 +1,1 @@
 project_id = "mwgmezpqcyaqxaggqaau"
-
-[functions.send-price-alert]
-verify_jwt = false
-
-[functions.get-stock-quote]
-verify_jwt = false
-
-[functions.get-stock-history]
-verify_jwt = false
-
-[functions.search-stocks]
-verify_jwt = false
