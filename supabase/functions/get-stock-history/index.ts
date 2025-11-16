@@ -39,6 +39,8 @@ serve(async (req) => {
     const url = `https://www.alphavantage.co/query?function=${functionName}&symbol=${symbol}&apikey=${apiKey}&outputsize=compact`;
     const response = await fetch(url);
     const data = await response.json();
+    
+    console.log('Alpha Vantage History Response:', JSON.stringify(data));
 
     if (data['Error Message']) {
       return new Response(

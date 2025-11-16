@@ -35,6 +35,8 @@ serve(async (req) => {
     const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
     const quoteResponse = await fetch(quoteUrl);
     const quoteData = await quoteResponse.json();
+    
+    console.log('Alpha Vantage Quote Response:', JSON.stringify(quoteData));
 
     if (quoteData['Error Message']) {
       return new Response(
@@ -62,6 +64,8 @@ serve(async (req) => {
     const overviewUrl = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${apiKey}`;
     const overviewResponse = await fetch(overviewUrl);
     const overview = await overviewResponse.json();
+    
+    console.log('Alpha Vantage Overview Response:', JSON.stringify(overview));
 
     const stockData = {
       symbol: quote['01. symbol'],
