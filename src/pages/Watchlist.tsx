@@ -5,10 +5,11 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useStockData } from "@/hooks/useStockData";
 
 interface WatchlistItem {
   id: string;
@@ -21,6 +22,9 @@ const Watchlist = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  const symbols = watchlist.map(item => item.symbol);
+  const { stockData, loading: stockDataLoading } = useStockData(symbols);
 
   useEffect(() => {
     if (!user) {
@@ -98,35 +102,71 @@ const Watchlist = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Symbol</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Change</TableHead>
                     <TableHead>Added On</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {watchlist.map((item) => (
-                    <TableRow
-                      key={item.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/stock/${item.symbol}`)}
-                    >
-                      <TableCell className="font-medium">{item.symbol}</TableCell>
-                      <TableCell>
-                        {new Date(item.added_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemove(item.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {watchlist.map((item) => {
+                    const stock = stockData[item.symbol];
+                    return (
+                      <TableRow
+                        key={item.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/stock/${item.symbol}`)}
+                      >
+                        <TableCell className="font-medium">{item.symbol}</TableCell>
+                        <TableCell>
+                          {stockDataLoading ? (
+                            <span className="text-muted-foreground">Loading...</span>
+                          ) : stock ? (
+                            stock.name
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {stockDataLoading ? (
+                            <span className="text-muted-foreground">Loading...</span>
+                          ) : stock ? (
+                            `₹${stock.price.toFixed(2)}`
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {stockDataLoading ? (
+                            <span className="text-muted-foreground">Loading...</span>
+                          ) : stock ? (
+                            <div className={`flex items-center justify-end gap-1 ${stock.change >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {stock.change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                              <span>{stock.change >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(item.added_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemove(item.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

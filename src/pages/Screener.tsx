@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
+import { useStockData } from "@/hooks/useStockData";
 
 // Sample stock data
 const stockData = [
@@ -54,6 +55,10 @@ const Screener = () => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
+  
+  // Fetch real-time data for all stocks
+  const allSymbols = stockData.map(s => s.symbol);
+  const { stockData: realTimeStockData } = useStockData(allSymbols);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -108,7 +113,16 @@ const Screener = () => {
   };
 
   const filteredAndSortedData = useMemo(() => {
-    let result = stockData.filter((stock) => {
+    // Merge real-time data with mock data
+    let result = stockData.map(stock => {
+      const realTime = realTimeStockData[stock.symbol];
+      return {
+        ...stock,
+        price: realTime?.price || stock.price,
+        change: realTime?.change || stock.change,
+        changePercent: realTime?.changePercent || (stock.change / stock.price * 100),
+      };
+    }).filter((stock) => {
       if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
       if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
       if (filters.peMax && stock.pe > parseFloat(filters.peMax)) return false;
@@ -141,7 +155,7 @@ const Screener = () => {
     }
 
     return result;
-  }, [filters, sortField, sortDirection]);
+  }, [filters, sortField, sortDirection, realTimeStockData]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;

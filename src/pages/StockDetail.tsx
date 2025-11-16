@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { useStockData } from "@/hooks/useStockData";
 
 // Mock data - in production, this would come from an API
 const stocksData: Record<string, any> = {
@@ -113,6 +114,10 @@ const peerComparison = [
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const stock = symbol ? stocksData[symbol.toUpperCase()] : null;
+  
+  // Fetch real-time data
+  const { stockData } = useStockData(symbol ? [symbol.toUpperCase()] : []);
+  const realTimeData = symbol ? stockData[symbol.toUpperCase()] : null;
 
   if (!stock) {
     return (
@@ -155,12 +160,17 @@ const StockDetail = () => {
             </div>
             <div className="text-left md:text-right">
               <div className="text-3xl md:text-4xl font-bold text-foreground mb-1">
-                ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                ₹{realTimeData ? realTimeData.price.toFixed(2) : stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
               <div className="flex flex-col md:items-end gap-2">
-                <div className={`flex items-center gap-1 text-lg ${stock.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {stock.change >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                  <span>{stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)} ({stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)</span>
+                <div className={`flex items-center gap-1 text-lg ${(realTimeData ? realTimeData.change : stock.change) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {(realTimeData ? realTimeData.change : stock.change) >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                  <span>
+                    {(realTimeData ? realTimeData.change : stock.change) >= 0 ? '+' : ''}
+                    {realTimeData ? realTimeData.change.toFixed(2) : stock.change.toFixed(2)} 
+                    ({(realTimeData ? realTimeData.changePercent : stock.changePercent) >= 0 ? '+' : ''}
+                    {realTimeData ? realTimeData.changePercent.toFixed(2) : stock.changePercent.toFixed(2)}%)
+                  </span>
                 </div>
                 <WatchlistButton symbol={stock.symbol} />
               </div>
