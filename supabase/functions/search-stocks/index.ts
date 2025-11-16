@@ -20,44 +20,27 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
-    if (!apiKey) {
-      console.error('ALPHA_VANTAGE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     console.log(`Searching stocks for keywords: ${keywords}`);
 
-    const url = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=${apiKey}`;
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(keywords)}&quotesCount=10&newsCount=0`;
     const response = await fetch(url);
     const data = await response.json();
 
-    if (data['Error Message']) {
+    if (!data.quotes) {
       return new Response(
-        JSON.stringify({ error: 'API error occurred' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'No results found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (data['Note']) {
-      return new Response(
-        JSON.stringify({ error: 'API rate limit reached. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const matches = data.bestMatches || [];
-    const results = matches.map((match: any) => ({
-      symbol: match['1. symbol'],
-      name: match['2. name'],
-      type: match['3. type'],
-      region: match['4. region'],
-      currency: match['8. currency'],
-      matchScore: parseFloat(match['9. matchScore']),
-    }));
+    const results = data.quotes.map((quote: any) => ({
+      symbol: quote.symbol,
+      name: quote.longname || quote.shortname || quote.symbol,
+      type: quote.quoteType || 'EQUITY',
+      region: quote.exchDisp || 'US',
+      currency: quote.currency || 'USD',
+      matchScore: 1.0,
+    })).filter((item: any) => item.type === 'EQUITY');
 
     console.log(`Found ${results.length} matching stocks`);
 

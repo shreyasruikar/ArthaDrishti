@@ -20,62 +20,55 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('ALPHA_VANTAGE_API_KEY');
-    if (!apiKey) {
-      console.error('ALPHA_VANTAGE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     console.log(`Fetching historical data for symbol: ${symbol}, interval: ${interval}`);
 
-    // Fetch time series data
-    const functionName = interval === 'weekly' ? 'TIME_SERIES_WEEKLY' : 
-                        interval === 'monthly' ? 'TIME_SERIES_MONTHLY' : 
-                        'TIME_SERIES_DAILY';
-    
-    const url = `https://www.alphavantage.co/query?function=${functionName}&symbol=${symbol}&apikey=${apiKey}&outputsize=compact`;
+    // Map interval to Yahoo Finance range
+    const rangeMap = {
+      'daily': '3mo',
+      'weekly': '1y',
+      'monthly': '5y'
+    };
+    const yahooInterval = interval === 'weekly' ? '1wk' : interval === 'monthly' ? '1mo' : '1d';
+    const range = rangeMap[interval as keyof typeof rangeMap] || '3mo';
+
+    // Fetch historical data from Yahoo Finance
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${yahooInterval}&range=${range}`;
     const response = await fetch(url);
     const data = await response.json();
-    
-    console.log('Alpha Vantage History Response:', JSON.stringify(data));
 
-    if (data['Error Message']) {
+    if (data.chart?.error) {
       return new Response(
         JSON.stringify({ error: 'Invalid symbol or API error' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (data['Note']) {
-      return new Response(
-        JSON.stringify({ error: 'API rate limit reached. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const timeSeriesKey = Object.keys(data).find(key => key.includes('Time Series'));
-    if (!timeSeriesKey) {
+    const result = data.chart?.result?.[0];
+    if (!result) {
       return new Response(
         JSON.stringify({ error: 'No time series data found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const timeSeries = data[timeSeriesKey];
-    const historicalData = Object.entries(timeSeries)
-      .slice(0, 100) // Get last 100 data points
-      .reverse()
-      .map(([date, values]: [string, any]) => ({
-        date,
-        open: parseFloat(values['1. open']),
-        high: parseFloat(values['2. high']),
-        low: parseFloat(values['3. low']),
-        close: parseFloat(values['4. close']),
-        volume: parseInt(values['5. volume']),
-      }));
+    const timestamps = result.timestamp || [];
+    const quote = result.indicators?.quote?.[0];
+
+    if (!quote) {
+      return new Response(
+        JSON.stringify({ error: 'No quote data found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const historicalData = timestamps.map((timestamp: number, index: number) => ({
+      date: new Date(timestamp * 1000).toISOString().split('T')[0],
+      open: quote.open?.[index] || 0,
+      high: quote.high?.[index] || 0,
+      low: quote.low?.[index] || 0,
+      close: quote.close?.[index] || 0,
+      volume: quote.volume?.[index] || 0,
+    })).filter((item: any) => item.close > 0);
 
     console.log(`Successfully fetched ${historicalData.length} data points`);
 
