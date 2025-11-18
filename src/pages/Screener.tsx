@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { createScreen } from "@/lib/db";
+import { useAuthContext } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatchlistButton from "@/components/WatchlistButton";
@@ -55,10 +57,52 @@ const Screener = () => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
+<<<<<<< HEAD
   
   // Fetch real-time data for all stocks
   const allSymbols = stockData.map(s => s.symbol);
   const { stockData: realTimeStockData } = useStockData(allSymbols);
+=======
+  const { user } = useAuthContext();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [screenName, setScreenName] = useState("");
+
+  // Handler to save the current screen config
+const handleSaveScreen = async () => {
+  if (!user) {
+    alert("Please sign in first!");
+    return;
+  }
+
+  if (!screenName.trim()) {
+    alert("Please enter a name for this screen.");
+    return;
+  }
+
+  try {
+    // Build a config object from current filters + sort + selected stocks
+    const currentConfig = {
+      filters,
+      sort: {
+        field: sortField,
+        direction: sortDirection,
+      },
+      selection: selectedStocks,
+      savedAt: new Date().toISOString(),
+    };
+
+    await createScreen(user.id, screenName.trim(), currentConfig);
+
+    alert("Screen saved!");
+    setSaveOpen(false);
+    setScreenName("");
+    // If you use react-query to list screens, invalidate queries here.
+  } catch (err: any) {
+    console.error(err);
+    alert(err?.message ?? "Failed to save screen");
+  }
+};
+>>>>>>> b1fdd6f (Integrated Supabase, added db service, fixed providers, WIP auth)
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -176,17 +220,25 @@ const Screener = () => {
         {/* Filters Section */}
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filters
-              </CardTitle>
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Clear All
-              </Button>
-            </div>
-          </CardHeader>
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2">
+      <Filter className="h-5 w-5" />
+      Filters
+    </CardTitle>
+
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={clearFilters}>
+        <X className="mr-2 h-4 w-4" />
+        Clear All
+      </Button>
+
+      <Button size="sm" onClick={() => setSaveOpen(true)}>
+        Save Screen
+      </Button>
+    </div>
+  </div>
+</CardHeader>
+
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Sector Filter */}
@@ -452,6 +504,34 @@ const Screener = () => {
           </CardContent>
         </Card>
       </div>
+      {/* Save Screen Modal */}
+{saveOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="absolute inset-0 bg-black/40" onClick={() => setSaveOpen(false)} />
+
+    <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <h3 className="text-lg font-semibold mb-3">Save Screen</h3>
+
+      <input
+        type="text"
+        placeholder="Screen name"
+        value={screenName}
+        onChange={(e) => setScreenName(e.target.value)}
+        className="w-full border rounded-md px-3 py-2 mb-4"
+      />
+
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={() => setSaveOpen(false)}>
+          Cancel
+        </Button>
+        <Button onClick={handleSaveScreen}>
+          Save
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       <Footer />
     </div>

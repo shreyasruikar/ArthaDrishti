@@ -1,175 +1,98 @@
 // src/lib/auth.ts
-// Future-proof auth service used by UI components.
-// - Default: mock auth (localStorage, good for demos)
-// - Swap to real backend by setting VITE_USE_MOCK_AUTH=false and providing endpoints.
-// - Uses import.meta.env.VITE_API_BASE (optional) as the API base URL.
+import { supabase } from "@/integrations/supabase/client";
 
 export type User = {
-  id?: string | number;
-  name?: string;
-  email?: string;
-};
+  id: string;
+  email?: string | null;
+  name?: string | null;
+} | null;
 
-const STORAGE_KEY = "user";
+const LOCAL_KEY = "user";
 
-// Toggle mock mode via Vite env. Default: true (mock).
-const USE_MOCK = (import.meta.env.VITE_USE_MOCK_AUTH ?? "true") === "true";
+export function setStoredUser(u: User) {
+  if (u) localStorage.setItem(LOCAL_KEY, JSON.stringify(u));
+  else localStorage.removeItem(LOCAL_KEY);
+}
 
-// Optional API base (for real backend). e.g. VITE_API_BASE=https://api.example.com
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
-
-/* ---------------------------
-   LocalStorage helpers
-   --------------------------- */
-export function getStoredUser(): User | null {
+export function getStoredUser(): User {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const s = localStorage.getItem(LOCAL_KEY);
+    return s ? JSON.parse(s) : null;
   } catch {
     return null;
   }
 }
 
-export function setStoredUser(user: User | null) {
-  if (!user) {
-    localStorage.removeItem(STORAGE_KEY);
-  } else {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+/**
+ * Sign up with email+password. Will attempt to create a profile row as well.
+ * Returns the created user object (or null if signup requires email confirmation).
+ */
+export async function signup(name: string, email: string, password: string): Promise<User> {
+  const { data, error } = await supabase.auth.signUp(
+    { email, password },
+    { data: { name } }
+  );
+
+  if (error) throw error;
+
+  // if user exists immediately (no confirmation required), create profile row
+  if (data?.user) {
+    try {
+      await supabase.from("profiles").insert([{ id: data.user.id, full_name: name }]);
+    } catch (e) {
+      // non-fatal: if profile row fails, still proceed
+      console.warn("profile insert failed", e);
+    }
+
+    const user = { id: data.user.id, email: data.user.email, name };
+    setStoredUser(user);
+    return user;
   }
+
+  // signup may require email confirmation — return null (UI should inform user)
+  return null;
 }
 
-/* ---------------------------
-   Mock implementations (dev/demo)
-   --------------------------- */
-async function signupMock(name: string, email: string, password: string): Promise<User> {
-  // simulate hashing/DB work
-  await new Promise((r) => setTimeout(r, 400));
-  const user: User = { id: Date.now(), name: name || "User", email };
+/** Login with email+password */
+export async function login(email: string, password: string): Promise<User | null> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  const u = data.user;
+  const user = u ? { id: u.id, email: u.email, name: (u.user_metadata as any)?.name } : null;
   setStoredUser(user);
   return user;
 }
 
-async function loginMock(email: string, password: string): Promise<User> {
-  await new Promise((r) => setTimeout(r, 350));
-  // In mock mode we accept any credentials.
-  const user: User = { id: "demo", name: "Demo User", email };
-  setStoredUser(user);
-  return user;
-}
-
-async function logoutMock(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 100));
+/** Logout */
+export async function logout(): Promise<void> {
+  const { error } = await supabase.auth.signOut();
+  if (error) console.warn("Supabase logout error:", error);
   setStoredUser(null);
 }
 
-async function getCurrentUserMock(): Promise<User | null> {
-  // immediate return — mimic network slight delay
-  await new Promise((r) => setTimeout(r, 80));
-  return getStoredUser();
-}
-
-/* ---------------------------
-   Real API implementations
-   (expects typical REST endpoints)
-   --------------------------- */
-async function signupApi(name: string, email: string, password: string): Promise<User> {
-  const res = await fetch(`${API_BASE}/auth/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include", // include cookies if backend uses them
-    body: JSON.stringify({ name, email, password }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Signup failed");
-  }
-  const data = await res.json();
-  // Expecting backend to return { user } or user object
-  const user = data.user ?? data;
-  setStoredUser(user);
-  return user;
-}
-
-async function loginApi(email: string, password: string): Promise<User> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ email, password }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Login failed");
-  }
-  const data = await res.json();
-  const user = data.user ?? data;
-  setStoredUser(user);
-  return user;
-}
-
-async function logoutApi(): Promise<void> {
-  // Call logout endpoint to clear server session if exists
-  const res = await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
-  // ignore body; still clear local cache
-  setStoredUser(null);
-  if (!res.ok) {
-    // optional: throw or just warn
-    console.warn("logout API responded with", res.status);
-  }
-}
-
-async function getCurrentUserApi(): Promise<User | null> {
-  const res = await fetch(`${API_BASE}/auth/me`, {
-    method: "GET",
-    credentials: "include",
-  });
-  if (!res.ok) {
+/** Get current user from Supabase session */
+export async function getCurrentUser(): Promise<User | null> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    console.warn("getCurrentUser error", error);
     return null;
   }
-  const data = await res.json();
-  const user = data.user ?? data;
+  if (!data?.user) return null;
+  const u = data.user;
+  const user = { id: u.id, email: u.email, name: (u.user_metadata as any)?.name };
   setStoredUser(user);
   return user;
 }
 
-/* ---------------------------
-   Public exported functions
-   - UI code should call these and not worry about implementation.
-   - When ready to switch to real backend: set VITE_USE_MOCK_AUTH=false and configure VITE_API_BASE
-   --------------------------- */
+/** Keep localStorage in sync with auth changes */
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (!session?.user) {
+    setStoredUser(null);
+  } else {
+    const u = session.user;
+    setStoredUser({ id: u.id, email: u.email, name: (u.user_metadata as any)?.name });
+  }
+});
 
-export async function signup(name: string, email: string, password: string): Promise<User> {
-  if (USE_MOCK) return signupMock(name, email, password);
-  return signupApi(name, email, password);
-}
-
-export async function login(email: string, password: string): Promise<User> {
-  if (USE_MOCK) return loginMock(email, password);
-  return loginApi(email, password);
-}
-
-export async function logout(): Promise<void> {
-  if (USE_MOCK) return logoutMock();
-  return logoutApi();
-}
-
-export async function getCurrentUser(): Promise<User | null> {
-  if (USE_MOCK) return getCurrentUserMock();
-  return getCurrentUserApi();
-}
-
-/* ---------------------------
-   Small convenience export
-   --------------------------- */
-export { STORAGE_KEY };
-export default {
-  signup,
-  login,
-  logout,
-  getCurrentUser,
-  getStoredUser,
-  setStoredUser,
-};
+export { LOCAL_KEY as STORAGE_KEY };
+export default { signup, login, logout, getCurrentUser, getStoredUser, setStoredUser };
