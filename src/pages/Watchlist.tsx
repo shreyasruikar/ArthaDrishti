@@ -38,7 +38,7 @@ const Watchlist = () => {
     if (!user) return;
 
     const { data, error } = await supabase
-      .from("watchlist")
+      .from("watchlists")
       .select("*")
       .eq("user_id", user.id)
       .order("added_at", { ascending: false });
@@ -53,7 +53,7 @@ const Watchlist = () => {
 
   const handleRemove = async (id: string) => {
     const { error } = await supabase
-      .from("watchlist")
+      .from("watchlists")
       .delete()
       .eq("id", id);
 

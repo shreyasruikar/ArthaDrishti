@@ -28,10 +28,13 @@ export function getStoredUser(): User {
  * Returns the created user object (or null if signup requires email confirmation).
  */
 export async function signup(name: string, email: string, password: string): Promise<User> {
-  const { data, error } = await supabase.auth.signUp(
-    { email, password },
-    { data: { name } }
-  );
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { name }
+    }
+  });
 
   if (error) throw error;
 
