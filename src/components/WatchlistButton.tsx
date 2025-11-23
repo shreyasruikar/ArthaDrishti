@@ -28,7 +28,7 @@ const WatchlistButton = ({ symbol, variant = "outline", size = "default" }: Watc
     if (!user) return;
 
     const { data } = await supabase
-      .from("watchlist")
+      .from("watchlists")
       .select("id")
       .eq("user_id", user.id)
       .eq("symbol", symbol)
@@ -48,7 +48,7 @@ const WatchlistButton = ({ symbol, variant = "outline", size = "default" }: Watc
 
     if (isInWatchlist) {
       const { error } = await supabase
-        .from("watchlist")
+        .from("watchlists")
         .delete()
         .eq("user_id", user.id)
         .eq("symbol", symbol);
@@ -61,7 +61,7 @@ const WatchlistButton = ({ symbol, variant = "outline", size = "default" }: Watc
       }
     } else {
       const { error } = await supabase
-        .from("watchlist")
+        .from("watchlists")
         .insert({
           user_id: user.id,
           symbol: symbol,
