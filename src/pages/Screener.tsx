@@ -1,12 +1,10 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { createScreen } from "@/lib/db";
-import { useAuthContext } from "@/contexts/AuthContext";
-
+import { useAuthContext } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatchlistButton from "@/components/WatchlistButton";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,9 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
-
 import { useStockData } from "@/hooks/useStockData";
 
 // Sample stock data
@@ -46,7 +42,6 @@ type SortDirection = "asc" | "desc" | null;
 
 const Screener = () => {
   const navigate = useNavigate();
-
   const [filters, setFilters] = useState({
     sector: "All",
     peMin: "",
@@ -62,53 +57,63 @@ const Screener = () => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
-
-  // Realtime data
-  const allSymbols = stockData.map((s) => s.symbol);
+<<<<<<< HEAD
+  
+  // Fetch real-time data for all stocks
+  const allSymbols = stockData.map(s => s.symbol);
   const { stockData: realTimeStockData } = useStockData(allSymbols);
-
-  // Auth + Save Screen
+=======
   const { user } = useAuthContext();
   const [saveOpen, setSaveOpen] = useState(false);
   const [screenName, setScreenName] = useState("");
 
-  const handleSaveScreen = async () => {
-    if (!user) {
-      alert("Please sign in first!");
-      return;
-    }
+  // Handler to save the current screen config
+const handleSaveScreen = async () => {
+  if (!user) {
+    alert("Please sign in first!");
+    return;
+  }
 
-    if (!screenName.trim()) {
-      alert("Please enter a name for this screen.");
-      return;
-    }
+  if (!screenName.trim()) {
+    alert("Please enter a name for this screen.");
+    return;
+  }
 
-    try {
-      const currentConfig = {
-        filters,
-        sort: { field: sortField, direction: sortDirection },
-        selection: selectedStocks,
-        savedAt: new Date().toISOString(),
-      };
+  try {
+    // Build a config object from current filters + sort + selected stocks
+    const currentConfig = {
+      filters,
+      sort: {
+        field: sortField,
+        direction: sortDirection,
+      },
+      selection: selectedStocks,
+      savedAt: new Date().toISOString(),
+    };
 
-      await createScreen(user.id, screenName.trim(), currentConfig);
-      alert("Screen saved!");
+    await createScreen(user.id, screenName.trim(), currentConfig);
 
-      setSaveOpen(false);
-      setScreenName("");
-    } catch (err: any) {
-      console.error(err);
-      alert(err?.message ?? "Failed to save screen");
-    }
-  };
+    alert("Screen saved!");
+    setSaveOpen(false);
+    setScreenName("");
+    // If you use react-query to list screens, invalidate queries here.
+  } catch (err: any) {
+    console.error(err);
+    alert(err?.message ?? "Failed to save screen");
+  }
+};
+>>>>>>> b1fdd6f (Integrated Supabase, added db service, fixed providers, WIP auth)
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      if (sortDirection === "asc") setSortDirection("desc");
-      else if (sortDirection === "desc") {
-        setSortDirection(null);
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else if (sortDirection === "desc") {
         setSortField(null);
-      } else setSortDirection("asc");
+        setSortDirection(null);
+      } else {
+        setSortDirection("asc");
+      }
     } else {
       setSortField(field);
       setSortDirection("asc");
@@ -132,69 +137,66 @@ const Screener = () => {
   };
 
   const handleSelectStock = (symbol: string) => {
-    setSelectedStocks((prev) =>
-      prev.includes(symbol) ? prev.filter((s) => s !== symbol) : [...prev, symbol]
+    setSelectedStocks(prev => 
+      prev.includes(symbol) 
+        ? prev.filter(s => s !== symbol)
+        : [...prev, symbol]
     );
   };
 
   const handleSelectAll = () => {
-    if (selectedStocks.length === filteredAndSortedData.length) setSelectedStocks([]);
-    else setSelectedStocks(filteredAndSortedData.map((stock) => stock.symbol));
+    if (selectedStocks.length === filteredAndSortedData.length) {
+      setSelectedStocks([]);
+    } else {
+      setSelectedStocks(filteredAndSortedData.map(stock => stock.symbol));
+    }
   };
 
   const handleCompare = () => {
-    navigate(`/compare?stocks=${selectedStocks.join(",")}`);
+    navigate(`/compare?stocks=${selectedStocks.join(',')}`);
   };
 
   const filteredAndSortedData = useMemo(() => {
-    let result = stockData
-      .map((stock) => {
-        const rt = realTimeStockData?.[stock.symbol];
-        return {
-          ...stock,
-          price: rt?.price ?? stock.price,
-          change: rt?.change ?? stock.change,
-          changePercent:
-            rt?.changePercent ?? (stock.change / stock.price) * 100,
-        };
-      })
-      .filter((stock) => {
-        if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
-        if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
-        if (filters.peMax && stock.pe > parseFloat(filters.peMax)) return false;
-        if (filters.marketCapMin && stock.marketCap < parseFloat(filters.marketCapMin)) return false;
-        if (filters.marketCapMax && stock.marketCap > parseFloat(filters.marketCapMax)) return false;
-        if (filters.roeMin && stock.roe < parseFloat(filters.roeMin)) return false;
-        if (filters.roeMax && stock.roe > parseFloat(filters.roeMax)) return false;
-        if (filters.debtRatioMin && stock.debtRatio < parseFloat(filters.debtRatioMin)) return false;
-        if (filters.debtRatioMax && stock.debtRatio > parseFloat(filters.debtRatioMax)) return false;
-        return true;
-      });
+    // Merge real-time data with mock data
+    let result = stockData.map(stock => {
+      const realTime = realTimeStockData[stock.symbol];
+      return {
+        ...stock,
+        price: realTime?.price || stock.price,
+        change: realTime?.change || stock.change,
+        changePercent: realTime?.changePercent || (stock.change / stock.price * 100),
+      };
+    }).filter((stock) => {
+      if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
+      if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
+      if (filters.peMax && stock.pe > parseFloat(filters.peMax)) return false;
+      if (filters.marketCapMin && stock.marketCap < parseFloat(filters.marketCapMin)) return false;
+      if (filters.marketCapMax && stock.marketCap > parseFloat(filters.marketCapMax)) return false;
+      if (filters.roeMin && stock.roe < parseFloat(filters.roeMin)) return false;
+      if (filters.roeMax && stock.roe > parseFloat(filters.roeMax)) return false;
+      if (filters.debtRatioMin && stock.debtRatio < parseFloat(filters.debtRatioMin)) return false;
+      if (filters.debtRatioMax && stock.debtRatio > parseFloat(filters.debtRatioMax)) return false;
+      return true;
+    });
 
     if (sortField && sortDirection) {
-  result = [...result].sort((a, b) => {
-    const aVal = a[sortField] as string | number | undefined;
-    const bVal = b[sortField] as string | number | undefined;
-
-    // both strings -> localeCompare
-    if (typeof aVal === "string" && typeof bVal === "string") {
-      return sortDirection === "asc"
-        ? aVal.localeCompare(bVal)
-        : bVal.localeCompare(aVal);
+      result = [...result].sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+        
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          return sortDirection === "asc" 
+            ? aVal.localeCompare(bVal) 
+            : bVal.localeCompare(aVal);
+        }
+        
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        
+        return 0;
+      });
     }
-
-    // both numbers -> numeric compare
-    if (typeof aVal === "number" && typeof bVal === "number") {
-      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-    }
-
-    // fallback: convert to string and compare
-    const aStr = String(aVal ?? "");
-    const bStr = String(bVal ?? "");
-    return sortDirection === "asc" ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
-  });
-}
-
 
     return result;
   }, [filters, sortField, sortDirection, realTimeStockData]);
@@ -208,46 +210,41 @@ const Screener = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
+      
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Stock Screener</h1>
-          <p className="text-muted-foreground">
-            Filter and analyze stocks based on fundamental metrics
-          </p>
+          <p className="text-muted-foreground">Filter and analyze stocks based on fundamental metrics</p>
         </div>
 
         {/* Filters Section */}
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filters
-              </CardTitle>
+  <div className="flex items-center justify-between">
+    <CardTitle className="flex items-center gap-2">
+      <Filter className="h-5 w-5" />
+      Filters
+    </CardTitle>
 
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={clearFilters}>
-                  <X className="mr-2 h-4 w-4" />
-                  Clear All
-                </Button>
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={clearFilters}>
+        <X className="mr-2 h-4 w-4" />
+        Clear All
+      </Button>
 
-                <Button size="sm" onClick={() => setSaveOpen(true)}>
-                  Save Screen
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
+      <Button size="sm" onClick={() => setSaveOpen(true)}>
+        Save Screen
+      </Button>
+    </div>
+  </div>
+</CardHeader>
 
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Sector Filter */}
               <div className="space-y-2">
                 <Label htmlFor="sector">Sector</Label>
-                <Select
-                  value={filters.sector}
-                  onValueChange={(value) => setFilters({ ...filters, sector: value })}
-                >
+                <Select value={filters.sector} onValueChange={(value) => setFilters({ ...filters, sector: value })}>
                   <SelectTrigger id="sector">
                     <SelectValue />
                   </SelectTrigger>
@@ -261,7 +258,7 @@ const Screener = () => {
                 </Select>
               </div>
 
-              {/* P/E Ratio */}
+              {/* P/E Ratio Filter */}
               <div className="space-y-2">
                 <Label>P/E Ratio</Label>
                 <div className="flex gap-2">
@@ -280,7 +277,7 @@ const Screener = () => {
                 </div>
               </div>
 
-              {/* Market Cap */}
+              {/* Market Cap Filter */}
               <div className="space-y-2">
                 <Label>Market Cap (Cr)</Label>
                 <div className="flex gap-2">
@@ -299,7 +296,7 @@ const Screener = () => {
                 </div>
               </div>
 
-              {/* ROE */}
+              {/* ROE Filter */}
               <div className="space-y-2">
                 <Label>ROE (%)</Label>
                 <div className="flex gap-2">
@@ -318,7 +315,7 @@ const Screener = () => {
                 </div>
               </div>
 
-              {/* Debt Ratio */}
+              {/* Debt Ratio Filter */}
               <div className="space-y-2">
                 <Label>Debt Ratio</Label>
                 <div className="flex gap-2">
@@ -342,17 +339,13 @@ const Screener = () => {
           </CardContent>
         </Card>
 
-        {/* Results */}
+        {/* Results Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                Results{" "}
-                <span className="text-muted-foreground">
-                  ({filteredAndSortedData.length} stocks)
-                </span>
+                Results <span className="text-muted-foreground">({filteredAndSortedData.length} stocks)</span>
               </CardTitle>
-
               {selectedStocks.length > 0 && (
                 <Button onClick={handleCompare} className="gap-2">
                   <GitCompare className="h-4 w-4" />
@@ -361,18 +354,14 @@ const Screener = () => {
               )}
             </div>
           </CardHeader>
-
           <CardContent>
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          selectedStocks.length === filteredAndSortedData.length &&
-                          filteredAndSortedData.length > 0
-                        }
+                      <Checkbox 
+                        checked={selectedStocks.length === filteredAndSortedData.length && filteredAndSortedData.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
@@ -380,8 +369,8 @@ const Screener = () => {
                     <TableHead>
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("name")}
+                        className="font-semibold hover:bg-muted"
                       >
                         Company
                         <SortIcon field="name" />
@@ -391,8 +380,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("price")}
+                        className="font-semibold hover:bg-muted"
                       >
                         Price (₹)
                         <SortIcon field="price" />
@@ -401,8 +390,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("change")}
+                        className="font-semibold hover:bg-muted"
                       >
                         Change (%)
                         <SortIcon field="change" />
@@ -411,8 +400,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("pe")}
+                        className="font-semibold hover:bg-muted"
                       >
                         P/E
                         <SortIcon field="pe" />
@@ -421,8 +410,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("marketCap")}
+                        className="font-semibold hover:bg-muted"
                       >
                         Market Cap (Cr)
                         <SortIcon field="marketCap" />
@@ -431,8 +420,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("roe")}
+                        className="font-semibold hover:bg-muted"
                       >
                         ROE (%)
                         <SortIcon field="roe" />
@@ -441,8 +430,8 @@ const Screener = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        className="font-semibold hover:bg-muted"
                         onClick={() => handleSort("debtRatio")}
+                        className="font-semibold hover:bg-muted"
                       >
                         Debt Ratio
                         <SortIcon field="debtRatio" />
@@ -450,29 +439,29 @@ const Screener = () => {
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
-                        No stocks match your criteria.
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        No stocks match your criteria. Try adjusting the filters.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredAndSortedData.map((stock) => (
-                      <TableRow key={stock.id} className="hover:bg-muted/50">
+                      <TableRow 
+                        key={stock.id} 
+                        className="hover:bg-muted/50"
+                      >
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
+                          <Checkbox 
                             checked={selectedStocks.includes(stock.symbol)}
                             onCheckedChange={() => handleSelectStock(stock.symbol)}
                           />
                         </TableCell>
-
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <WatchlistButton symbol={stock.symbol} variant="ghost" size="icon" />
                         </TableCell>
-
-                        <TableCell
+                        <TableCell 
                           className="cursor-pointer"
                           onClick={() => navigate(`/stock/${stock.symbol}`)}
                         >
@@ -481,44 +470,28 @@ const Screener = () => {
                             <div className="text-sm text-muted-foreground">{stock.symbol}</div>
                           </div>
                         </TableCell>
-
                         <TableCell>
                           <Badge variant="secondary">{stock.sector}</Badge>
                         </TableCell>
-
                         <TableCell className="text-right font-medium">
-                          {stock.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          {stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </TableCell>
-
                         <TableCell className="text-right">
                           <span className={stock.change >= 0 ? "text-success" : "text-destructive"}>
-                            {stock.change >= 0 ? "+" : ""}
-                            {stock.change.toFixed(2)}%
+                            {stock.change >= 0 ? "+" : ""}{stock.change.toFixed(2)}%
                           </span>
                         </TableCell>
-
                         <TableCell className="text-right">{stock.pe.toFixed(1)}</TableCell>
-
                         <TableCell className="text-right">
                           {(stock.marketCap / 1000).toFixed(1)}L
                         </TableCell>
-
                         <TableCell className="text-right">
                           <span className={stock.roe >= 15 ? "text-success font-medium" : ""}>
                             {stock.roe.toFixed(1)}%
                           </span>
                         </TableCell>
-
                         <TableCell className="text-right">
-                          <span
-                            className={
-                              stock.debtRatio <= 0.5
-                                ? "text-success"
-                                : stock.debtRatio > 1
-                                ? "text-destructive"
-                                : ""
-                            }
-                          >
+                          <span className={stock.debtRatio <= 0.5 ? "text-success" : stock.debtRatio > 1 ? "text-destructive" : ""}>
                             {stock.debtRatio.toFixed(2)}
                           </span>
                         </TableCell>
@@ -531,35 +504,34 @@ const Screener = () => {
           </CardContent>
         </Card>
       </div>
-
       {/* Save Screen Modal */}
-      {saveOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setSaveOpen(false)}
-          />
+{saveOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="absolute inset-0 bg-black/40" onClick={() => setSaveOpen(false)} />
 
-          <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold mb-3">Save Screen</h3>
+    <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <h3 className="text-lg font-semibold mb-3">Save Screen</h3>
 
-            <input
-              type="text"
-              placeholder="Screen name"
-              value={screenName}
-              onChange={(e) => setScreenName(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 mb-4"
-            />
+      <input
+        type="text"
+        placeholder="Screen name"
+        value={screenName}
+        onChange={(e) => setScreenName(e.target.value)}
+        className="w-full border rounded-md px-3 py-2 mb-4"
+      />
 
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setSaveOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveScreen}>Save</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={() => setSaveOpen(false)}>
+          Cancel
+        </Button>
+        <Button onClick={handleSaveScreen}>
+          Save
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       <Footer />
     </div>
