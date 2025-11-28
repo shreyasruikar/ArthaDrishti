@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
+import AISearchBox from "@/components/AISearchBox";
+
 
 // All sectors available in the backend
 const sectors = ["All", "Banking", "IT Services", "Energy", "FMCG", "Telecom", "Construction", "Paints", "Automobile", "Pharma", "Finance", "Insurance", "Cement", "Infrastructure", "Chemicals", "Metals", "Mining", "Power", "Consumer Durables", "Retail", "Media", "Entertainment", "Real Estate", "Diversified"];
@@ -207,6 +209,9 @@ const Screener = () => {
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Stock Screener</h1>
           <p className="text-muted-foreground">Filter and analyze stocks based on fundamental metrics</p>
         </div>
+
+        {/* AI Search Box - ADD THIS */}
+<AISearchBox onSearch={(aiFilters) => setFilters(prev => ({...prev, ...aiFilters}))} />
 
         {/* Filters Section */}
         <Card className="mb-6">

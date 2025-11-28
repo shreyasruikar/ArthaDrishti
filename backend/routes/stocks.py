@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.indian_stock_generator import indian_stock_gen, INDIAN_STOCKS
+from services.ai_search import ai_search  # MOVE THIS TO TOP!
 
 stocks_bp = Blueprint('stocks', __name__)
 
@@ -70,6 +71,33 @@ def get_historical_data(symbol):
             return jsonify({"error": "Stock not found or data unavailable"}), 404
         
         return jsonify({"symbol": symbol, "data": historical}), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@stocks_bp.route('/search', methods=['POST'])
+def ai_search_stocks():
+    """AI-powered natural language stock search"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+        
+        # Parse query with AI
+        filters = ai_search.parse_query(query)
+        
+        if not filters:
+            return jsonify({
+                "error": "Could not understand query",
+                "filters": {}
+            }), 200
+        
+        return jsonify({
+            "filters": filters,
+            "query": query
+        }), 200
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
