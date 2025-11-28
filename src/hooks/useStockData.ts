@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface StockData {
   symbol: string;
@@ -28,14 +27,20 @@ export const useStockData = (symbols: string[]) => {
         setLoading(true);
         setError(null);
 
-        const { data, error: functionError } = await supabase.functions.invoke(
-          "get-stock-data",
-          {
-            body: { symbols },
-          }
-        );
+        // Call Flask backend instead of Supabase function
+        const response = await fetch('http://localhost:5000/api/stocks/data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ symbols }),
+        });
 
-        if (functionError) throw functionError;
+        if (!response.ok) {
+          throw new Error('Failed to fetch stock data');
+        }
+
+        const data = await response.json();
 
         if (data?.stocks) {
           const dataMap: Record<string, StockData> = {};

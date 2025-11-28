@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createScreen } from "@/lib/db";
-import { useAuthContext } from "@/context/AuthContext";
+import { useAuthContext } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatchlistButton from "@/components/WatchlistButton";
@@ -14,28 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
-import { useStockData } from "@/hooks/useStockData";
 
-// Sample stock data
-const stockData = [
-  { id: 1, name: "Reliance Industries", symbol: "RELIANCE", sector: "Energy", price: 2456.80, pe: 23.5, marketCap: 1650000, roe: 14.2, debtRatio: 0.45, change: 2.34 },
-  { id: 2, name: "HDFC Bank", symbol: "HDFCBANK", sector: "Banking", price: 1678.50, pe: 19.2, marketCap: 920000, roe: 16.8, debtRatio: 0.12, change: -0.49 },
-  { id: 3, name: "Infosys", symbol: "INFY", sector: "IT Services", price: 1432.30, pe: 26.8, marketCap: 590000, roe: 22.5, debtRatio: 0.08, change: 1.10 },
-  { id: 4, name: "TCS", symbol: "TCS", sector: "IT Services", price: 3589.25, pe: 28.4, marketCap: 1310000, roe: 41.2, debtRatio: 0.05, change: 0.85 },
-  { id: 5, name: "ICICI Bank", symbol: "ICICIBANK", sector: "Banking", price: 1034.60, pe: 17.5, marketCap: 725000, roe: 15.3, debtRatio: 0.15, change: 1.42 },
-  { id: 6, name: "Bharti Airtel", symbol: "BHARTIARTL", sector: "Telecom", price: 1289.40, pe: 35.2, marketCap: 745000, roe: 12.8, debtRatio: 1.25, change: -1.20 },
-  { id: 7, name: "ITC", symbol: "ITC", sector: "FMCG", price: 456.70, pe: 24.3, marketCap: 570000, roe: 26.4, debtRatio: 0.02, change: 0.65 },
-  { id: 8, name: "Larsen & Toubro", symbol: "LT", sector: "Construction", price: 3245.80, pe: 31.6, marketCap: 445000, roe: 18.7, debtRatio: 0.68, change: 2.10 },
-  { id: 9, name: "Asian Paints", symbol: "ASIANPAINT", sector: "Paints", price: 2978.50, pe: 54.2, marketCap: 285000, roe: 28.3, debtRatio: 0.01, change: -0.35 },
-  { id: 10, name: "HCL Technologies", symbol: "HCLTECH", sector: "IT Services", price: 1456.90, pe: 22.7, marketCap: 395000, roe: 19.8, debtRatio: 0.11, change: 1.55 },
-  { id: 11, name: "Wipro", symbol: "WIPRO", sector: "IT Services", price: 456.30, pe: 21.4, marketCap: 245000, roe: 17.2, debtRatio: 0.09, change: -0.88 },
-  { id: 12, name: "Axis Bank", symbol: "AXISBANK", sector: "Banking", price: 1089.75, pe: 12.8, marketCap: 335000, roe: 13.5, debtRatio: 0.18, change: 1.92 },
-  { id: 13, name: "Mahindra & Mahindra", symbol: "M&M", sector: "Automobile", price: 2134.20, pe: 27.9, marketCap: 265000, roe: 19.4, debtRatio: 0.42, change: 3.25 },
-  { id: 14, name: "Sun Pharma", symbol: "SUNPHARMA", sector: "Pharma", price: 1567.40, pe: 38.5, marketCap: 375000, roe: 14.6, debtRatio: 0.06, change: 0.42 },
-  { id: 15, name: "Maruti Suzuki", symbol: "MARUTI", sector: "Automobile", price: 12456.80, pe: 29.3, marketCap: 375000, roe: 16.8, debtRatio: 0.03, change: -1.15 },
-];
-
-const sectors = ["All", "Banking", "IT Services", "Energy", "FMCG", "Telecom", "Construction", "Paints", "Automobile", "Pharma"];
+// All sectors available in the backend
+const sectors = ["All", "Banking", "IT Services", "Energy", "FMCG", "Telecom", "Construction", "Paints", "Automobile", "Pharma", "Finance", "Insurance", "Cement", "Infrastructure", "Chemicals", "Metals", "Mining", "Power", "Consumer Durables", "Retail", "Media", "Entertainment", "Real Estate", "Diversified"];
 
 type SortField = "name" | "price" | "pe" | "marketCap" | "roe" | "debtRatio" | "change";
 type SortDirection = "asc" | "desc" | null;
@@ -57,52 +38,70 @@ const Screener = () => {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
-<<<<<<< HEAD
-  
-  // Fetch real-time data for all stocks
-  const allSymbols = stockData.map(s => s.symbol);
-  const { stockData: realTimeStockData } = useStockData(allSymbols);
-=======
   const { user } = useAuthContext();
   const [saveOpen, setSaveOpen] = useState(false);
   const [screenName, setScreenName] = useState("");
+  
+  // State to store live stock data from backend
+  const [liveStockData, setLiveStockData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Handler to save the current screen config
-const handleSaveScreen = async () => {
-  if (!user) {
-    alert("Please sign in first!");
-    return;
-  }
-
-  if (!screenName.trim()) {
-    alert("Please enter a name for this screen.");
-    return;
-  }
-
-  try {
-    // Build a config object from current filters + sort + selected stocks
-    const currentConfig = {
-      filters,
-      sort: {
-        field: sortField,
-        direction: sortDirection,
-      },
-      selection: selectedStocks,
-      savedAt: new Date().toISOString(),
+  // Fetch all stocks from backend on component mount
+  useEffect(() => {
+    const fetchAllStocks = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/stocks/all');
+        const data = await response.json();
+        console.log('✅ Loaded stocks from backend:', data.stocks.length);
+        setLiveStockData(data.stocks);
+        setLoading(false);
+      } catch (error) {
+        console.error('❌ Error fetching stocks:', error);
+        setLoading(false);
+      }
     };
 
-    await createScreen(user.id, screenName.trim(), currentConfig);
+    fetchAllStocks();
+    
+    // Auto-refresh every 60 seconds
+    const interval = setInterval(fetchAllStocks, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
-    alert("Screen saved!");
-    setSaveOpen(false);
-    setScreenName("");
-    // If you use react-query to list screens, invalidate queries here.
-  } catch (err: any) {
-    console.error(err);
-    alert(err?.message ?? "Failed to save screen");
-  }
-};
->>>>>>> b1fdd6f (Integrated Supabase, added db service, fixed providers, WIP auth)
+  // Handler to save the current screen config
+  const handleSaveScreen = async () => {
+    if (!user) {
+      alert("Please sign in first!");
+      return;
+    }
+
+    if (!screenName.trim()) {
+      alert("Please enter a name for this screen.");
+      return;
+    }
+
+    try {
+      const currentConfig = {
+        filters,
+        sort: {
+          field: sortField,
+          direction: sortDirection,
+        },
+        selection: selectedStocks,
+        savedAt: new Date().toISOString(),
+      };
+
+      await createScreen(user.id, screenName.trim(), currentConfig);
+
+      alert("Screen saved!");
+      setSaveOpen(false);
+      setScreenName("");
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message ?? "Failed to save screen");
+    }
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -157,16 +156,8 @@ const handleSaveScreen = async () => {
   };
 
   const filteredAndSortedData = useMemo(() => {
-    // Merge real-time data with mock data
-    let result = stockData.map(stock => {
-      const realTime = realTimeStockData[stock.symbol];
-      return {
-        ...stock,
-        price: realTime?.price || stock.price,
-        change: realTime?.change || stock.change,
-        changePercent: realTime?.changePercent || (stock.change / stock.price * 100),
-      };
-    }).filter((stock) => {
+    // Use live data from backend
+    let result = liveStockData.filter((stock) => {
       if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
       if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
       if (filters.peMax && stock.pe > parseFloat(filters.peMax)) return false;
@@ -199,7 +190,7 @@ const handleSaveScreen = async () => {
     }
 
     return result;
-  }, [filters, sortField, sortDirection, realTimeStockData]);
+  }, [filters, sortField, sortDirection, liveStockData]);
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="ml-2 h-4 w-4" />;
@@ -220,24 +211,24 @@ const handleSaveScreen = async () => {
         {/* Filters Section */}
         <Card className="mb-6">
           <CardHeader>
-  <div className="flex items-center justify-between">
-    <CardTitle className="flex items-center gap-2">
-      <Filter className="h-5 w-5" />
-      Filters
-    </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filters
+              </CardTitle>
 
-    <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={clearFilters}>
-        <X className="mr-2 h-4 w-4" />
-        Clear All
-      </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Clear All
+                </Button>
 
-      <Button size="sm" onClick={() => setSaveOpen(true)}>
-        Save Screen
-      </Button>
-    </div>
-  </div>
-</CardHeader>
+                <Button size="sm" onClick={() => setSaveOpen(true)}>
+                  Save Screen
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
 
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -344,7 +335,7 @@ const handleSaveScreen = async () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                Results <span className="text-muted-foreground">({filteredAndSortedData.length} stocks)</span>
+                Results <span className="text-muted-foreground">({loading ? '...' : filteredAndSortedData.length} stocks)</span>
               </CardTitle>
               {selectedStocks.length > 0 && (
                 <Button onClick={handleCompare} className="gap-2">
@@ -440,16 +431,22 @@ const handleSaveScreen = async () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAndSortedData.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        Loading stocks...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredAndSortedData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         No stocks match your criteria. Try adjusting the filters.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAndSortedData.map((stock) => (
+                    filteredAndSortedData.map((stock, index) => (
                       <TableRow 
-                        key={stock.id} 
+                        key={stock.symbol || index} 
                         className="hover:bg-muted/50"
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -477,8 +474,8 @@ const handleSaveScreen = async () => {
                           {stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={stock.change >= 0 ? "text-success" : "text-destructive"}>
-                            {stock.change >= 0 ? "+" : ""}{stock.change.toFixed(2)}%
+                          <span className={stock.changePercent >= 0 ? "text-success" : "text-destructive"}>
+                            {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
                           </span>
                         </TableCell>
                         <TableCell className="text-right">{stock.pe.toFixed(1)}</TableCell>
@@ -504,34 +501,34 @@ const handleSaveScreen = async () => {
           </CardContent>
         </Card>
       </div>
+
       {/* Save Screen Modal */}
-{saveOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-    <div className="absolute inset-0 bg-black/40" onClick={() => setSaveOpen(false)} />
+      {saveOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSaveOpen(false)} />
 
-    <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-      <h3 className="text-lg font-semibold mb-3">Save Screen</h3>
+          <div className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold mb-3">Save Screen</h3>
 
-      <input
-        type="text"
-        placeholder="Screen name"
-        value={screenName}
-        onChange={(e) => setScreenName(e.target.value)}
-        className="w-full border rounded-md px-3 py-2 mb-4"
-      />
+            <input
+              type="text"
+              placeholder="Screen name"
+              value={screenName}
+              onChange={(e) => setScreenName(e.target.value)}
+              className="w-full border rounded-md px-3 py-2 mb-4"
+            />
 
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => setSaveOpen(false)}>
-          Cancel
-        </Button>
-        <Button onClick={handleSaveScreen}>
-          Save
-        </Button>
-      </div>
-    </div>
-  </div>
-)}
-
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setSaveOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveScreen}>
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
