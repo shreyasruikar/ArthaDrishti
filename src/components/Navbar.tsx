@@ -21,9 +21,6 @@ const Navbar = () => {
         <div className="hidden md:flex items-center gap-6">
           <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</a>
           <Link to="/screener" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Screener</Link>
-          <Link to="/portfolio">
-  <Button variant="ghost">Portfolio</Button>
-</Link>
           {user && (
             <Link to="/watchlist" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Watchlist

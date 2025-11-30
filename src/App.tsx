@@ -12,7 +12,6 @@ import Comparison from "./pages/Comparison";
 import Auth from "./pages/Auth";
 import Watchlist from "./pages/Watchlist";
 import NotFound from "./pages/NotFound";
-import Portfolio from "./pages/Portfolio";
 
 const queryClient = new QueryClient();
 
@@ -30,7 +29,6 @@ export default function App() {
               <Route path="/screener" element={<Screener />} />
               <Route path="/stock/:symbol" element={<StockDetail />} />
               <Route path="/compare" element={<Comparison />} />
-              <Route path="/portfolio" element={<Portfolio />} />  {/* ADD THIS LINE */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="*" element={<NotFound />} />

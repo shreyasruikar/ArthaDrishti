@@ -16,27 +16,30 @@ print("=" * 50)
 from routes.stocks import stocks_bp
 # from routes.watchlist import watchlist_bp  # COMMENTED OUT
 from routes.screener import screener_bp
-from routes.portfolio import portfolio_bp
+
 app = Flask(__name__)
 
-from flask_cors import CORS
-
-CORS(
-    app,
-    resources={r"/api/*": {"origins": "*"}},
-    supports_credentials=False,
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
-)
-
+# UPDATED CORS - Allow ALL localhost ports
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://localhost:3000", 
+            "http://localhost:8081",  # ADD THIS
+            "http://localhost:8080",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:8081",  # ADD THIS
+            "http://127.0.0.1:3000"
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # Rest of your app.py stays the same...
 app.register_blueprint(stocks_bp, url_prefix='/api/stocks')
-app.register_blueprint(portfolio_bp, url_prefix='/api/portfolio')
 # app.register_blueprint(watchlist_bp, url_prefix='/api/watchlist')  
 app.register_blueprint(screener_bp, url_prefix='/api/screener')
-
-
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
