@@ -14,6 +14,8 @@ import Watchlist from "./pages/Watchlist";
 import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
 import Screens from "./pages/Screens";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 
 
 const queryClient = new QueryClient();
@@ -37,6 +39,8 @@ export default function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

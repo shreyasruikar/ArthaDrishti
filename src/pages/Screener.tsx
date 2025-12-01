@@ -116,11 +116,10 @@ const Screener = () => {
         case "large-cap-quality":
           return {
             ...base,
-            marketCapMin: "50000", // adjust to your scale
+            marketCapMin: "50000",
             roeMin: "18",
           };
         case "dividend-stocks":
-          // Approximation using ROE + PE since dividendYield isn't a filter here
           return {
             ...base,
             roeMin: "12",
@@ -131,7 +130,6 @@ const Screener = () => {
       }
     });
 
-    // Optional: clear sort when a screen is applied
     setSortField(null);
     setSortDirection(null);
   }, [location.search]);
@@ -141,7 +139,7 @@ const Screener = () => {
     const fetchAllStocks = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:5000/api/stocks/all");
+        const response = await fetch("http://localhost:5000/api/stocks/");
         const data = await response.json();
         console.log("✅ Loaded stocks from backend:", data.stocks.length);
         setLiveStockData(data.stocks);
@@ -154,12 +152,10 @@ const Screener = () => {
 
     fetchAllStocks();
 
-    // Auto-refresh every 60 seconds
     const interval = setInterval(fetchAllStocks, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Handler to save the current screen config
   const handleSaveScreen = async () => {
     if (!user) {
       alert("Please sign in first!");
@@ -246,14 +242,14 @@ const Screener = () => {
   const filteredAndSortedData = useMemo(() => {
     let result = liveStockData.filter((stock) => {
       if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
-      if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
-      if (filters.peMax && stock.pe > parseFloat(filters.peMax)) return false;
-      if (filters.marketCapMin && stock.marketCap < parseFloat(filters.marketCapMin)) return false;
-      if (filters.marketCapMax && stock.marketCap > parseFloat(filters.marketCapMax)) return false;
-      if (filters.roeMin && stock.roe < parseFloat(filters.roeMin)) return false;
-      if (filters.roeMax && stock.roe > parseFloat(filters.roeMax)) return false;
-      if (filters.debtRatioMin && stock.debtRatio < parseFloat(filters.debtRatioMin)) return false;
-      if (filters.debtRatioMax && stock.debtRatio > parseFloat(filters.debtRatioMax)) return false;
+      if (filters.peMin && (stock.pe ?? 0) < parseFloat(filters.peMin)) return false;
+      if (filters.peMax && (stock.pe ?? 0) > parseFloat(filters.peMax)) return false;
+      if (filters.marketCapMin && (stock.marketCap ?? 0) < parseFloat(filters.marketCapMin)) return false;
+      if (filters.marketCapMax && (stock.marketCap ?? 0) > parseFloat(filters.marketCapMax)) return false;
+      if (filters.roeMin && (stock.roe ?? 0) < parseFloat(filters.roeMin)) return false;
+      if (filters.roeMax && (stock.roe ?? 0) > parseFloat(filters.roeMax)) return false;
+      if (filters.debtRatioMin && (stock.debtRatio ?? 0) < parseFloat(filters.debtRatioMin)) return false;
+      if (filters.debtRatioMax && (stock.debtRatio ?? 0) > parseFloat(filters.debtRatioMax)) return false;
       return true;
     });
 
@@ -555,7 +551,7 @@ const Screener = () => {
                           />
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <WatchlistButton symbol={stock.symbol} variant="ghost" size="icon" />
+                          <WatchlistButton symbol={stock.symbol} />
                         </TableCell>
                         <TableCell
                           className="cursor-pointer"
@@ -567,41 +563,41 @@ const Screener = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{stock.sector}</Badge>
+                          <Badge variant="secondary">{stock.sector ?? 'N/A'}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {stock.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          {stock.price?.toLocaleString("en-IN", { minimumFractionDigits: 2 }) ?? 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">
                           <span
                             className={
-                              stock.changePercent >= 0 ? "text-success" : "text-destructive"
+                              (stock.changePercent ?? 0) >= 0 ? "text-success" : "text-destructive"
                             }
                           >
-                            {stock.changePercent >= 0 ? "+" : ""}
-                            {stock.changePercent.toFixed(2)}%
+                            {(stock.changePercent ?? 0) >= 0 ? "+" : ""}
+                            {stock.changePercent?.toFixed(2) ?? '0.00'}%
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">{stock.pe.toFixed(1)}</TableCell>
+                        <TableCell className="text-right">{stock.pe?.toFixed(1) ?? 'N/A'}</TableCell>
                         <TableCell className="text-right">
-                          {(stock.marketCap / 1000).toFixed(1)}L
+                          {stock.marketCap ? (stock.marketCap / 1000).toFixed(1) : 'N/A'}L
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={stock.roe >= 15 ? "text-success font-medium" : ""}>
-                            {stock.roe.toFixed(1)}%
+                          <span className={(stock.roe ?? 0) >= 15 ? "text-success font-medium" : ""}>
+                            {stock.roe?.toFixed(1) ?? 'N/A'}%
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <span
                             className={
-                              stock.debtRatio <= 0.5
+                              (stock.debtRatio ?? 0) <= 0.5
                                 ? "text-success"
-                                : stock.debtRatio > 1
+                                : (stock.debtRatio ?? 0) > 1
                                 ? "text-destructive"
                                 : ""
                             }
                           >
-                            {stock.debtRatio.toFixed(2)}
+                            {stock.debtRatio?.toFixed(2) ?? 'N/A'}
                           </span>
                         </TableCell>
                       </TableRow>
