@@ -1,4 +1,5 @@
 import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatchlistButton from "@/components/WatchlistButton";
@@ -7,71 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, AlertTriangle } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { useStockData } from "@/hooks/useStockData";
 
-// Mock data - in production, this would come from an API
-const stocksData: Record<string, any> = {
-  RELIANCE: {
-    name: "Reliance Industries",
-    symbol: "RELIANCE",
-    sector: "Energy",
-    price: 2456.80,
-    change: 2.34,
-    changePercent: 0.96,
-    marketCap: 1650000,
-    pe: 23.5,
-    pb: 2.1,
-    roe: 14.2,
-    roce: 12.8,
-    debtRatio: 0.45,
-    currentRatio: 1.2,
-    dividendYield: 0.5,
-    eps: 104.5,
-    bookValue: 1169.5,
-    faceValue: 10,
-  },
-  HDFCBANK: {
-    name: "HDFC Bank",
-    symbol: "HDFCBANK",
-    sector: "Banking",
-    price: 1678.50,
-    change: -0.49,
-    changePercent: -0.03,
-    marketCap: 920000,
-    pe: 19.2,
-    pb: 2.8,
-    roe: 16.8,
-    roce: 7.2,
-    debtRatio: 0.12,
-    currentRatio: 0.9,
-    dividendYield: 1.2,
-    eps: 87.4,
-    bookValue: 599.5,
-    faceValue: 1,
-  },
-  INFY: {
-    name: "Infosys",
-    symbol: "INFY",
-    sector: "IT Services",
-    price: 1432.30,
-    change: 1.10,
-    changePercent: 0.77,
-    marketCap: 590000,
-    pe: 26.8,
-    pb: 7.2,
-    roe: 22.5,
-    roce: 28.4,
-    debtRatio: 0.08,
-    currentRatio: 2.4,
-    dividendYield: 2.5,
-    eps: 53.4,
-    bookValue: 198.9,
-    faceValue: 5,
-  },
-};
-
+// Mock historical/quarterly data - would come from backend in production
 const historicalData = [
   { month: "Jan", price: 2156, volume: 12500 },
   { month: "Feb", price: 2234, volume: 14200 },
@@ -104,20 +45,104 @@ const performanceMetrics = [
   { period: "3 Years", value: 45.2 },
 ];
 
-const peerComparison = [
-  { name: "Reliance Industries", symbol: "RELIANCE", pe: 23.5, roe: 14.2, debtRatio: 0.45, marketCap: 1650000 },
-  { name: "ONGC", symbol: "ONGC", pe: 8.9, roe: 11.4, debtRatio: 0.32, marketCap: 345000 },
-  { name: "Indian Oil", symbol: "IOC", pe: 12.4, roe: 9.8, debtRatio: 0.68, marketCap: 289000 },
-  { name: "BPCL", symbol: "BPCL", pe: 15.7, roe: 13.2, debtRatio: 0.51, marketCap: 178000 },
-];
-
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
-  const stock = symbol ? stocksData[symbol.toUpperCase()] : null;
   
+  // Fetch stock data from backend
+  const [stock, setStock] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [peerComparison, setPeerComparison] = useState<any[]>([]);
+
   // Fetch real-time data
   const { stockData } = useStockData(symbol ? [symbol.toUpperCase()] : []);
   const realTimeData = symbol ? stockData[symbol.toUpperCase()] : null;
+
+  // AI Risk Assessment state
+  const [riskAssessment, setRiskAssessment] = useState<any>(null);
+  const [loadingRisk, setLoadingRisk] = useState(false);
+
+  // Fetch stock detail from backend
+  useEffect(() => {
+    if (!symbol) return;
+
+    const fetchStock = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`http://localhost:5000/api/stocks/detail/${symbol.toUpperCase()}`);
+        if (!res.ok) throw new Error('Stock not found');
+        const data = await res.json();
+        setStock(data);
+      } catch (err) {
+        console.error('Error fetching stock:', err);
+        setStock(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStock();
+  }, [symbol]);
+
+  // Fetch peers for comparison
+  useEffect(() => {
+    if (!stock?.sector) return;
+
+    const fetchPeers = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/stocks/all`);
+        const data = await res.json();
+        const peers = data.stocks
+          .filter((s: any) => s.sector === stock.sector)
+          .slice(0, 4)
+          .map((s: any) => ({
+            name: s.name,
+            symbol: s.symbol,
+            pe: s.pe,
+            roe: s.roe,
+            debtRatio: s.debtRatio,
+            marketCap: s.marketCap,
+          }));
+        setPeerComparison(peers);
+      } catch (err) {
+        console.error('Error fetching peers:', err);
+      }
+    };
+
+    fetchPeers();
+  }, [stock]);
+
+  // Fetch AI risk assessment
+  useEffect(() => {
+    if (!symbol) return;
+
+    const fetchRisk = async () => {
+      setLoadingRisk(true);
+      try {
+        const res = await fetch(`http://localhost:5000/api/risk/assess/${symbol.toUpperCase()}`);
+        const data = await res.json();
+        setRiskAssessment(data.risk);
+      } catch (err) {
+        console.error('Risk assessment error:', err);
+      } finally {
+        setLoadingRisk(false);
+      }
+    };
+
+    fetchRisk();
+  }, [symbol]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading stock data...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!stock) {
     return (
@@ -163,13 +188,11 @@ const StockDetail = () => {
                 ₹{realTimeData ? realTimeData.price.toFixed(2) : stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
               <div className="flex flex-col md:items-end gap-2">
-                <div className={`flex items-center gap-1 text-lg ${(realTimeData ? realTimeData.change : stock.change) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {(realTimeData ? realTimeData.change : stock.change) >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                <div className={`flex items-center gap-1 text-lg ${(realTimeData ? realTimeData.changePercent : stock.changePercent) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {(realTimeData ? realTimeData.changePercent : stock.changePercent) >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
                   <span>
-                    {(realTimeData ? realTimeData.change : stock.change) >= 0 ? '+' : ''}
-                    {realTimeData ? realTimeData.change.toFixed(2) : stock.change.toFixed(2)} 
-                    ({(realTimeData ? realTimeData.changePercent : stock.changePercent) >= 0 ? '+' : ''}
-                    {realTimeData ? realTimeData.changePercent.toFixed(2) : stock.changePercent.toFixed(2)}%)
+                    {(realTimeData ? realTimeData.changePercent : stock.changePercent) >= 0 ? '+' : ''}
+                    {realTimeData ? realTimeData.changePercent.toFixed(2) : stock.changePercent.toFixed(2)}%
                   </span>
                 </div>
                 <WatchlistButton symbol={stock.symbol} />
@@ -177,6 +200,51 @@ const StockDetail = () => {
             </div>
           </div>
         </div>
+
+        {/* AI Risk Assessment Card */}
+        <Card className="mb-6 border-l-4 border-l-amber-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              🤖 AI Risk Assessment
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingRisk ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <span>Analyzing fundamentals...</span>
+              </div>
+            ) : riskAssessment ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-muted-foreground">Risk Level:</span>
+                  <Badge
+                    variant={
+                      riskAssessment.level === "Low"
+                        ? "default"
+                        : riskAssessment.level === "Moderate"
+                        ? "secondary"
+                        : "destructive"
+                    }
+                    className="text-sm"
+                  >
+                    {riskAssessment.level}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Score: {riskAssessment.score}/10
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed">{riskAssessment.explanation}</p>
+                <p className="text-xs text-muted-foreground italic">
+                  Powered by AI • Based on fundamental metrics
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Unable to generate AI assessment. Please check fundamentals manually.</p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
@@ -194,12 +262,6 @@ const StockDetail = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-sm text-muted-foreground mb-1">P/B Ratio</div>
-              <div className="text-xl font-bold">{stock.pb.toFixed(2)}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
               <div className="text-sm text-muted-foreground mb-1">ROE</div>
               <div className="text-xl font-bold text-success">{stock.roe.toFixed(1)}%</div>
             </CardContent>
@@ -212,8 +274,14 @@ const StockDetail = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground mb-1">EPS</div>
+              <div className="text-xl font-bold">₹{stock.eps?.toFixed(2) || 'N/A'}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
               <div className="text-sm text-muted-foreground mb-1">Dividend Yield</div>
-              <div className="text-xl font-bold">{stock.dividendYield.toFixed(2)}%</div>
+              <div className="text-xl font-bold">{stock.dividendYield?.toFixed(2) || '0.00'}%</div>
             </CardContent>
           </Card>
         </div>
@@ -299,35 +367,19 @@ const StockDetail = () => {
               <CardContent>
                 <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
                   <div>
-                    <div className="text-sm text-muted-foreground mb-1">EPS</div>
-                    <div className="text-2xl font-bold">₹{stock.eps.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Book Value</div>
-                    <div className="text-2xl font-bold">₹{stock.bookValue.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Face Value</div>
-                    <div className="text-2xl font-bold">₹{stock.faceValue}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">ROCE</div>
-                    <div className="text-2xl font-bold">{stock.roce.toFixed(1)}%</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Current Ratio</div>
-                    <div className="text-2xl font-bold">{stock.currentRatio.toFixed(2)}</div>
+                    <div className="text-sm text-muted-foreground mb-1">Market Cap</div>
+                    <div className="text-2xl font-bold">₹{(stock.marketCap / 1000).toFixed(1)}L Cr</div>
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground mb-1">P/E Ratio</div>
                     <div className="text-2xl font-bold">{stock.pe.toFixed(2)}</div>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground mb-1">P/B Ratio</div>
-                    <div className="text-2xl font-bold">{stock.pb.toFixed(2)}</div>
+                    <div className="text-sm text-muted-foreground mb-1">ROE</div>
+                    <div className="text-2xl font-bold text-success">{stock.roe.toFixed(1)}%</div>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground mb-1">Debt/Equity</div>
+                    <div className="text-sm text-muted-foreground mb-1">Debt Ratio</div>
                     <div className="text-2xl font-bold">{stock.debtRatio.toFixed(2)}</div>
                   </div>
                 </div>
@@ -455,55 +507,59 @@ const StockDetail = () => {
                 <CardTitle>Peer Comparison - {stock.sector} Sector</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Company</TableHead>
-                        <TableHead className="text-right">Market Cap (Cr)</TableHead>
-                        <TableHead className="text-right">P/E Ratio</TableHead>
-                        <TableHead className="text-right">ROE (%)</TableHead>
-                        <TableHead className="text-right">Debt Ratio</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {peerComparison.map((peer, index) => (
-                        <TableRow key={index} className={peer.symbol === stock.symbol ? "bg-accent/10" : ""}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{peer.name}</div>
-                              <div className="text-sm text-muted-foreground">{peer.symbol}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">{(peer.marketCap / 1000).toFixed(1)}L</TableCell>
-                          <TableCell className="text-right">{peer.pe.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            <span className={peer.roe >= 15 ? "text-success font-medium" : ""}>
-                              {peer.roe.toFixed(1)}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className={peer.debtRatio <= 0.5 ? "text-success" : peer.debtRatio > 1 ? "text-destructive" : ""}>
-                              {peer.debtRatio.toFixed(2)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {peer.symbol !== stock.symbol ? (
-                              <Link to={`/stock/${peer.symbol}`}>
-                                <Button variant="ghost" size="sm">
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                            ) : (
-                              <Badge variant="secondary">Current</Badge>
-                            )}
-                          </TableCell>
+                {peerComparison.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Company</TableHead>
+                          <TableHead className="text-right">Market Cap (Cr)</TableHead>
+                          <TableHead className="text-right">P/E Ratio</TableHead>
+                          <TableHead className="text-right">ROE (%)</TableHead>
+                          <TableHead className="text-right">Debt Ratio</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {peerComparison.map((peer, index) => (
+                          <TableRow key={index} className={peer.symbol === stock.symbol ? "bg-accent/10" : ""}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{peer.name}</div>
+                                <div className="text-sm text-muted-foreground">{peer.symbol}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{(peer.marketCap / 1000).toFixed(1)}L</TableCell>
+                            <TableCell className="text-right">{peer.pe.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={peer.roe >= 15 ? "text-success font-medium" : ""}>
+                                {peer.roe.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className={peer.debtRatio <= 0.5 ? "text-success" : peer.debtRatio > 1 ? "text-destructive" : ""}>
+                                {peer.debtRatio.toFixed(2)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {peer.symbol !== stock.symbol ? (
+                                <Link to={`/stock/${peer.symbol}`}>
+                                  <Button variant="ghost" size="sm">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Badge variant="secondary">Current</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No peer data available</p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

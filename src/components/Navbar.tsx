@@ -1,14 +1,16 @@
 // src/components/Navbar.tsx
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, Star, LogOut } from "lucide-react";
+import { Search, TrendingUp, Star, LogOut, Moon, Sun } from "lucide-react";
 import { Link } from "react-router-dom";
 import GetStartedModal from "@/components/GetStartedModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeProvider";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -61,10 +63,23 @@ const Navbar = () => {
           </a>
         </div>
 
-        {/* Right side: search + auth */}
+        {/* Right side: search + theme toggle + auth */}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon">
             <Search className="h-5 w-5" />
+          </Button>
+
+          {/* Dark mode toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
           </Button>
 
           {user ? (

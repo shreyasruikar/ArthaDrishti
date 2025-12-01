@@ -17,6 +17,8 @@ from routes.stocks import stocks_bp
 # from routes.watchlist import watchlist_bp  # COMMENTED OUT
 from routes.screener import screener_bp
 from routes.portfolio import portfolio_bp
+from routes.risk import risk_bp
+from routes.watchlist import watchlist_bp
 app = Flask(__name__)
 
 from flask_cors import CORS
@@ -35,8 +37,8 @@ app.register_blueprint(stocks_bp, url_prefix='/api/stocks')
 app.register_blueprint(portfolio_bp, url_prefix='/api/portfolio')
 # app.register_blueprint(watchlist_bp, url_prefix='/api/watchlist')  
 app.register_blueprint(screener_bp, url_prefix='/api/screener')
-
-
+app.register_blueprint(risk_bp, url_prefix='/api/risk')
+app.register_blueprint(watchlist_bp, url_prefix='/api/watchlist')
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

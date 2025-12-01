@@ -1,10 +1,10 @@
-// src/components/GetStartedModal.tsx
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X, Eye, EyeOff, User, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { signup, login as loginFn, getCurrentUser } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -14,13 +14,14 @@ function EmailValid(email: string) {
 
 export default function GetStartedModal({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const { signUp, signIn } = useAuth();
   const [tab, setTab] = useState<"signup" | "login" | "guest">("signup");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // lock body scroll while modal open
+  // Lock scroll
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
@@ -31,6 +32,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
     }
   }, [open]);
 
+  // Reset when closed
   useEffect(() => {
     if (!open) {
       setForm({ name: "", email: "", password: "" });
@@ -40,7 +42,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  // close on Esc
+  // ESC to close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -50,9 +52,6 @@ export default function GetStartedModal({ open, onClose }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
-
-  const update = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
 
   const goToScreener = () => {
     onClose();
@@ -68,11 +67,16 @@ export default function GetStartedModal({ open, onClose }: Props) {
     e.preventDefault();
     if (!EmailValid(form.email)) return handleError("Please enter a valid email.");
     if (form.password.length < 6) return handleError("Password must be at least 6 characters.");
+
     try {
       setLoading(true);
-      await signup(form.name || "User", form.email, form.password);
-      await getCurrentUser();
-      goToScreener();
+      const { error } = await signUp(form.email, form.password);
+      if (error) {
+        handleError(error.message);
+      } else {
+        toast.success("Account created! Check your email to verify.");
+        goToScreener();
+      }
     } catch (err: any) {
       handleError(err?.message ?? "Signup failed");
     } finally {
@@ -83,11 +87,16 @@ export default function GetStartedModal({ open, onClose }: Props) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!EmailValid(form.email)) return handleError("Please enter a valid email.");
+
     try {
       setLoading(true);
-      await loginFn(form.email, form.password);
-      await getCurrentUser();
-      goToScreener();
+      const { error } = await signIn(form.email, form.password);
+      if (error) {
+        handleError(error.message);
+      } else {
+        toast.success("Welcome back!");
+        goToScreener();
+      }
     } catch (err: any) {
       handleError(err?.message ?? "Login failed");
     } finally {
@@ -95,29 +104,27 @@ export default function GetStartedModal({ open, onClose }: Props) {
     }
   };
 
-  const continueGuest = () => {
-    goToScreener();
-  };
+  const continueGuest = () => goToScreener();
 
-  // Portal markup: render to document.body so modal is outside of any parent stacking context
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
-      {/* full-screen overlay */}
+
+      {/* overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
-        aria-hidden
+        aria-hidden="true"
       />
 
-      {/* modal card: constrained height with scroll inside when content exceeds viewport */}
+      {/* modal */}
       <div
-        className="relative z-10 w-full max-w-3xl rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(2,6,23,0.45)]"
+        className="relative z-10 w-full max-w-3xl rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(2,6,23,0.45)] bg-white"
         role="dialog"
         aria-modal="true"
         aria-label="Get Started"
       >
-        {/* header */}
-        <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-indigo-600 via-sky-500 to-emerald-400">
+        {/* HEADER */}
+        <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-400">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center shadow-md">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="transform -rotate-12">
@@ -133,20 +140,19 @@ export default function GetStartedModal({ open, onClose }: Props) {
             </div>
           </div>
 
-          <div className="ml-auto">
-            <button
-              onClick={onClose}
-              aria-label="Close modal"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 transition"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close modal"
+            className="ml-auto inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 transition"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
         </div>
 
-        {/* body with constrained height + internal scroll */}
+        {/* BODY */}
         <div className="bg-white p-6 md:p-8 max-h-[82vh] overflow-auto">
-          {/* tabs */}
+
+          {/* TABS */}
           <div className="flex items-center gap-3 mb-6">
             <div className="flex gap-2 bg-gray-100 p-1 rounded-full">
               <button
@@ -155,6 +161,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
               >
                 Sign up
               </button>
+
               <button
                 onClick={() => setTab("login")}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition ${tab === "login" ? "bg-white shadow text-gray-900" : "text-gray-600"}`}
@@ -163,28 +170,32 @@ export default function GetStartedModal({ open, onClose }: Props) {
               </button>
             </div>
 
-            <div className="ml-auto">
-              <button
-                onClick={() => setTab("guest")}
-                className={`px-3 py-1 rounded-full text-sm font-semibold transition ${tab === "guest" ? "bg-blue-600 text-white shadow" : "text-blue-600 border border-blue-100 bg-white"}`}
-              >
-                Continue as Guest
-              </button>
-            </div>
+            <button
+              onClick={() => setTab("guest")}
+              className={`ml-auto px-3 py-1 rounded-full text-sm font-semibold transition ${tab === "guest" ? "bg-purple-600 text-white shadow" : "text-purple-600 border border-purple-100 bg-white"}`}
+            >
+              Continue as Guest
+            </button>
           </div>
 
+          {/* CONTENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* LEFT SIDE */}
             <div>
               {tab === "guest" ? (
                 <div className="space-y-4">
                   <p className="text-gray-700">Try the screener with sample data. Save screens after creating an account.</p>
                   <Button onClick={continueGuest} className="w-full py-2.5 text-base">Continue as Guest</Button>
                   <div className="mt-2 text-center">
-                    <button onClick={() => setTab("signup")} className="text-sm text-gray-600 hover:underline">Create account</button>
+                    <button onClick={() => setTab("signup")} className="text-sm text-gray-600 hover:underline">
+                      Create account
+                    </button>
                   </div>
                 </div>
               ) : (
                 <form onSubmit={tab === "signup" ? handleSignup : handleLogin} className="space-y-4">
+
                   {tab === "signup" && (
                     <label className="block">
                       <div className="flex items-center text-sm text-gray-700 mb-2">
@@ -195,11 +206,12 @@ export default function GetStartedModal({ open, onClose }: Props) {
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         placeholder="How should we call you?"
-                        className="w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                     </label>
                   )}
 
+                  {/* EMAIL */}
                   <label className="block">
                     <div className="flex items-center text-sm text-gray-700 mb-2">
                       <Mail className="w-4 h-4 mr-2 text-gray-500" /> Email
@@ -210,18 +222,24 @@ export default function GetStartedModal({ open, onClose }: Props) {
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       placeholder="you@company.com"
-                      className="w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+
                     />
-                    {!EmailValid(form.email) && form.email.length > 0 && <p className="text-xs text-rose-600 mt-1">Please enter a valid email.</p>}
+                    {!EmailValid(form.email) && form.email.length > 0 && (
+                      <p className="text-xs text-rose-600 mt-1">Please enter a valid email.</p>
+                    )}
                   </label>
 
+                  {/* PASSWORD */}
                   <label className="block">
                     <div className="flex items-center justify-between text-sm text-gray-700 mb-2">
                       <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-gray-500" viewBox="0 0 24 24" fill="none"><path d="M12 15v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                        <svg className="w-4 h-4 mr-2 text-gray-500" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 9v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                        </svg>
                         Password
                       </div>
-                      <div className="text-xs text-gray-500">min 6 chars</div>
+                      <span className="text-xs text-gray-500">min 6 chars</span>
                     </div>
 
                     <div className="relative">
@@ -231,7 +249,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
                         placeholder="Create a strong password"
-                        className="w-full border border-gray-200 rounded-lg px-4 py-2 pr-12 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-12 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       />
                       <button
                         type="button"
@@ -243,41 +261,33 @@ export default function GetStartedModal({ open, onClose }: Props) {
                       </button>
                     </div>
 
-                    {form.password.length > 0 && form.password.length < 6 && <p className="text-xs text-rose-600 mt-1">Password too short.</p>}
+                    {form.password.length > 0 && form.password.length < 6 && (
+                      <p className="text-xs text-rose-600 mt-1">Password too short.</p>
+                    )}
                   </label>
 
+                  {/* BUTTONS */}
                   <div className="flex items-center gap-3">
                     <Button type="submit" className="flex-1 py-2.5" disabled={loading}>
                       {loading ? "Processing..." : tab === "signup" ? "Create account" : "Login"}
                     </Button>
 
-                    <button type="button" onClick={() => setForm({ name: "", email: "", password: "" })} className="px-3 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50">Reset</button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ name: "", email: "", password: "" })}
+                      className="px-3 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Reset
+                    </button>
                   </div>
 
-                  <div className="pt-1">
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                      <span className="flex-1 border-t" />
-                      <span className="px-2">or continue with</span>
-                      <span className="flex-1 border-t" />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 hover:shadow-sm">
-                        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M21 8.5a8 8 0 1 1-15.9 2.7" stroke="#4285F4" strokeWidth="1.6" fill="none"/></svg>
-                        <span className="text-sm">Google</span>
-                      </button>
-                      <button className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 hover:shadow-sm">
-                        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 3v5" stroke="#1DA1F2" strokeWidth="1.6" fill="none"/></svg>
-                        <span className="text-sm">Twitter</span>
-                      </button>
-                    </div>
-                  </div>
                 </form>
               )}
             </div>
 
+            {/* RIGHT SIDE */}
             <div className="hidden md:block">
-              <div className="h-full bg-gradient-to-b from-sky-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border border-gray-100">
+              <div className="h-full bg-gradient-to-b from-purple-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border border-gray-100">
                 <div className="w-full">
                   <div className="rounded-lg bg-white p-4 shadow-sm">
                     <h4 className="text-lg font-semibold text-gray-800 mb-1">Why create an account?</h4>
@@ -291,9 +301,9 @@ export default function GetStartedModal({ open, onClose }: Props) {
 
                 <div className="mt-6 text-center">
                   <svg width="160" height="120" viewBox="0 0 160 120" fill="none" className="mx-auto">
-                    <rect x="6" y="20" width="148" height="84" rx="12" fill="#E6F7FF"/>
-                    <path d="M22 84c18-24 48-24 66-6s44 12 56-6" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round"/>
-                    <circle cx="132" cy="46" r="6" fill="#06B6D4"/>
+                    <rect x="6" y="20" width="148" height="84" rx="12" fill="#F3E8FF" />
+                    <path d="M22 84c18-24 48-24 66-6s44 12 56-6" stroke="#A78BFA" strokeWidth="2.5" strokeLinecap="round" />
+                    <circle cx="132" cy="46" r="6" fill="#8B5CF6" />
                   </svg>
 
                   <p className="text-xs text-gray-500 mt-3">Fast, visual, and easy — built for retail investors.</p>
@@ -302,12 +312,17 @@ export default function GetStartedModal({ open, onClose }: Props) {
             </div>
           </div>
 
+          {/* ERROR MSG */}
           {error && (
             <div className="mt-4 text-sm text-rose-600 font-medium flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" className="text-rose-600"><path d="M12 9v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" className="text-rose-600">
+                <path d="M12 9v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <circle cx="12" cy="16" r="1" fill="currentColor" />
+              </svg>
               <span>{error}</span>
             </div>
           )}
+
         </div>
       </div>
     </div>,

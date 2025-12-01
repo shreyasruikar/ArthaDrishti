@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 from services.indian_stock_generator import indian_stock_gen, INDIAN_STOCKS
 from services.ai_search import ai_search  # MOVE THIS TO TOP!
+import random
+
 
 stocks_bp = Blueprint('stocks', __name__)
 
@@ -25,6 +27,8 @@ def get_stock_data():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+
 
 @stocks_bp.route('/all', methods=['GET'])
 def get_all_stocks():

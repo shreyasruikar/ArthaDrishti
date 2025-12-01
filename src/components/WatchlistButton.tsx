@@ -1,22 +1,19 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 
 interface WatchlistButtonProps {
   symbol: string;
-  variant?: "default" | "outline" | "ghost";
-  size?: "default" | "sm" | "lg" | "icon";
 }
 
-const WatchlistButton = ({ symbol, variant = "outline", size = "default" }: WatchlistButtonProps) => {
-  const [isInWatchlist, setIsInWatchlist] = useState(false);
-  const [loading, setLoading] = useState(false);
+const WatchlistButton = ({ symbol }: WatchlistButtonProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [watchlistId, setWatchlistId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -27,66 +24,84 @@ const WatchlistButton = ({ symbol, variant = "outline", size = "default" }: Watc
   const checkWatchlist = async () => {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("watchlist")
       .select("id")
       .eq("user_id", user.id)
-      .eq("symbol", symbol)
+      .eq("symbol", symbol.toUpperCase())
       .maybeSingle();
 
-    setIsInWatchlist(!!data);
+    if (!error && data) {
+      setInWatchlist(true);
+      setWatchlistId(data.id);
+    } else {
+      setInWatchlist(false);
+      setWatchlistId(null);
+    }
   };
 
-  const handleToggle = async () => {
+  const toggleWatchlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!user) {
       toast.error("Please sign in to use watchlist");
-      navigate("/auth");
       return;
     }
 
     setLoading(true);
+    try {
+      if (inWatchlist && watchlistId) {
+        // Remove from watchlist
+        const { error } = await supabase
+          .from("watchlist")
+          .delete()
+          .eq("id", watchlistId);
 
-    if (isInWatchlist) {
-      const { error } = await supabase
-        .from("watchlist")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("symbol", symbol);
-
-      if (error) {
-        toast.error("Failed to remove from watchlist");
-      } else {
-        setIsInWatchlist(false);
+        if (error) throw error;
+        
+        setInWatchlist(false);
+        setWatchlistId(null);
         toast.success("Removed from watchlist");
-      }
-    } else {
-      const { error } = await supabase
-        .from("watchlist")
-        .insert({
-          user_id: user.id,
-          symbol: symbol,
-        });
-
-      if (error) {
-        toast.error("Failed to add to watchlist");
       } else {
-        setIsInWatchlist(true);
+        // Add to watchlist
+        const { data, error } = await supabase
+          .from("watchlist")
+          .insert({
+            user_id: user.id,
+            symbol: symbol.toUpperCase()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        setInWatchlist(true);
+        setWatchlistId(data.id);
         toast.success("Added to watchlist");
       }
+    } catch (err: any) {
+      console.error("Error toggling watchlist:", err);
+      if (err.code === '23505') {
+        toast.error("Already in watchlist");
+      } else {
+        toast.error("Failed to update watchlist");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
     <Button
-      variant={variant}
-      size={size}
-      onClick={handleToggle}
+      variant={inWatchlist ? "default" : "outline"}
+      size="sm"
+      onClick={toggleWatchlist}
       disabled={loading}
+      className="gap-2"
     >
-      <Star className={`h-4 w-4 ${isInWatchlist ? "fill-current" : ""}`} />
-      {size !== "icon" && (isInWatchlist ? "Remove from Watchlist" : "Add to Watchlist")}
+      <Star className={`h-4 w-4 ${inWatchlist ? 'fill-current' : ''}`} />
+      {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
     </Button>
   );
 };
