@@ -13,6 +13,8 @@ import Auth from "./pages/Auth";
 import Watchlist from "./pages/Watchlist";
 import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
+import Screens from "./pages/Screens";
+
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/screener" element={<Screener />} />
+              <Route path="/screens" element={<Screens />} /> 
               <Route path="/stock/:symbol" element={<StockDetail />} />
               <Route path="/compare" element={<Comparison />} />
               <Route path="/portfolio" element={<Portfolio />} />  {/* ADD THIS LINE */}

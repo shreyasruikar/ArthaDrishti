@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { createScreen } from "@/lib/db";
 import { useAuthContext } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
@@ -16,15 +16,41 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
 import AISearchBox from "@/components/AISearchBox";
 
-
 // All sectors available in the backend
-const sectors = ["All", "Banking", "IT Services", "Energy", "FMCG", "Telecom", "Construction", "Paints", "Automobile", "Pharma", "Finance", "Insurance", "Cement", "Infrastructure", "Chemicals", "Metals", "Mining", "Power", "Consumer Durables", "Retail", "Media", "Entertainment", "Real Estate", "Diversified"];
+const sectors = [
+  "All",
+  "Banking",
+  "IT Services",
+  "Energy",
+  "FMCG",
+  "Telecom",
+  "Construction",
+  "Paints",
+  "Automobile",
+  "Pharma",
+  "Finance",
+  "Insurance",
+  "Cement",
+  "Infrastructure",
+  "Chemicals",
+  "Metals",
+  "Mining",
+  "Power",
+  "Consumer Durables",
+  "Retail",
+  "Media",
+  "Entertainment",
+  "Real Estate",
+  "Diversified",
+];
 
 type SortField = "name" | "price" | "pe" | "marketCap" | "roe" | "debtRatio" | "change";
 type SortDirection = "asc" | "desc" | null;
 
 const Screener = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [filters, setFilters] = useState({
     sector: "All",
     peMin: "",
@@ -43,29 +69,91 @@ const Screener = () => {
   const { user } = useAuthContext();
   const [saveOpen, setSaveOpen] = useState(false);
   const [screenName, setScreenName] = useState("");
-  
+
   // State to store live stock data from backend
   const [liveStockData, setLiveStockData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 🔹 Apply smart screen from URL (?screen=...)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const screen = params.get("screen");
+
+    if (!screen) return;
+
+    setFilters((prev) => {
+      const base = {
+        ...prev,
+        sector: "All",
+        peMin: "",
+        peMax: "",
+        marketCapMin: "",
+        marketCapMax: "",
+        roeMin: "",
+        roeMax: "",
+        debtRatioMin: "",
+        debtRatioMax: "",
+      };
+
+      switch (screen) {
+        case "high-roe-winners":
+          return {
+            ...base,
+            roeMin: "20",
+            debtRatioMax: "0.5",
+          };
+        case "value-picks":
+          return {
+            ...base,
+            peMax: "15",
+            roeMin: "15",
+          };
+        case "low-debt-stable":
+          return {
+            ...base,
+            debtRatioMax: "0.3",
+          };
+        case "large-cap-quality":
+          return {
+            ...base,
+            marketCapMin: "50000", // adjust to your scale
+            roeMin: "18",
+          };
+        case "dividend-stocks":
+          // Approximation using ROE + PE since dividendYield isn't a filter here
+          return {
+            ...base,
+            roeMin: "12",
+            peMax: "25",
+          };
+        default:
+          return prev;
+      }
+    });
+
+    // Optional: clear sort when a screen is applied
+    setSortField(null);
+    setSortDirection(null);
+  }, [location.search]);
 
   // Fetch all stocks from backend on component mount
   useEffect(() => {
     const fetchAllStocks = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/stocks/all');
+        const response = await fetch("http://localhost:5000/api/stocks/all");
         const data = await response.json();
-        console.log('✅ Loaded stocks from backend:', data.stocks.length);
+        console.log("✅ Loaded stocks from backend:", data.stocks.length);
         setLiveStockData(data.stocks);
         setLoading(false);
       } catch (error) {
-        console.error('❌ Error fetching stocks:', error);
+        console.error("❌ Error fetching stocks:", error);
         setLoading(false);
       }
     };
 
     fetchAllStocks();
-    
+
     // Auto-refresh every 60 seconds
     const interval = setInterval(fetchAllStocks, 60000);
     return () => clearInterval(interval);
@@ -138,10 +226,8 @@ const Screener = () => {
   };
 
   const handleSelectStock = (symbol: string) => {
-    setSelectedStocks(prev => 
-      prev.includes(symbol) 
-        ? prev.filter(s => s !== symbol)
-        : [...prev, symbol]
+    setSelectedStocks((prev) =>
+      prev.includes(symbol) ? prev.filter((s) => s !== symbol) : [...prev, symbol]
     );
   };
 
@@ -149,16 +235,15 @@ const Screener = () => {
     if (selectedStocks.length === filteredAndSortedData.length) {
       setSelectedStocks([]);
     } else {
-      setSelectedStocks(filteredAndSortedData.map(stock => stock.symbol));
+      setSelectedStocks(filteredAndSortedData.map((stock) => stock.symbol));
     }
   };
 
   const handleCompare = () => {
-    navigate(`/compare?stocks=${selectedStocks.join(',')}`);
+    navigate(`/compare?stocks=${selectedStocks.join(",")}`);
   };
 
   const filteredAndSortedData = useMemo(() => {
-    // Use live data from backend
     let result = liveStockData.filter((stock) => {
       if (filters.sector !== "All" && stock.sector !== filters.sector) return false;
       if (filters.peMin && stock.pe < parseFloat(filters.peMin)) return false;
@@ -176,17 +261,15 @@ const Screener = () => {
       result = [...result].sort((a, b) => {
         const aVal = a[sortField];
         const bVal = b[sortField];
-        
+
         if (typeof aVal === "string" && typeof bVal === "string") {
-          return sortDirection === "asc" 
-            ? aVal.localeCompare(bVal) 
-            : bVal.localeCompare(aVal);
+          return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
         }
-        
+
         if (typeof aVal === "number" && typeof bVal === "number") {
           return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
         }
-        
+
         return 0;
       });
     }
@@ -203,15 +286,17 @@ const Screener = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Stock Screener</h1>
-          <p className="text-muted-foreground">Filter and analyze stocks based on fundamental metrics</p>
+          <p className="text-muted-foreground">
+            Filter and analyze stocks based on fundamental metrics
+          </p>
         </div>
 
-        {/* AI Search Box - ADD THIS */}
-<AISearchBox onSearch={(aiFilters) => setFilters(prev => ({...prev, ...aiFilters}))} />
+        {/* AI Search Box */}
+        <AISearchBox onSearch={(aiFilters) => setFilters((prev) => ({ ...prev, ...aiFilters }))} />
 
         {/* Filters Section */}
         <Card className="mb-6">
@@ -240,7 +325,10 @@ const Screener = () => {
               {/* Sector Filter */}
               <div className="space-y-2">
                 <Label htmlFor="sector">Sector</Label>
-                <Select value={filters.sector} onValueChange={(value) => setFilters({ ...filters, sector: value })}>
+                <Select
+                  value={filters.sector}
+                  onValueChange={(value) => setFilters({ ...filters, sector: value })}
+                >
                   <SelectTrigger id="sector">
                     <SelectValue />
                   </SelectTrigger>
@@ -340,7 +428,10 @@ const Screener = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>
-                Results <span className="text-muted-foreground">({loading ? '...' : filteredAndSortedData.length} stocks)</span>
+                Results{" "}
+                <span className="text-muted-foreground">
+                  ({loading ? "..." : filteredAndSortedData.length} stocks)
+                </span>
               </CardTitle>
               {selectedStocks.length > 0 && (
                 <Button onClick={handleCompare} className="gap-2">
@@ -356,8 +447,11 @@ const Screener = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
-                      <Checkbox 
-                        checked={selectedStocks.length === filteredAndSortedData.length && filteredAndSortedData.length > 0}
+                      <Checkbox
+                        checked={
+                          selectedStocks.length === filteredAndSortedData.length &&
+                          filteredAndSortedData.length > 0
+                        }
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
@@ -450,12 +544,12 @@ const Screener = () => {
                     </TableRow>
                   ) : (
                     filteredAndSortedData.map((stock, index) => (
-                      <TableRow 
-                        key={stock.symbol || index} 
+                      <TableRow
+                        key={stock.symbol || index}
                         className="hover:bg-muted/50"
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox 
+                          <Checkbox
                             checked={selectedStocks.includes(stock.symbol)}
                             onCheckedChange={() => handleSelectStock(stock.symbol)}
                           />
@@ -463,7 +557,7 @@ const Screener = () => {
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <WatchlistButton symbol={stock.symbol} variant="ghost" size="icon" />
                         </TableCell>
-                        <TableCell 
+                        <TableCell
                           className="cursor-pointer"
                           onClick={() => navigate(`/stock/${stock.symbol}`)}
                         >
@@ -476,11 +570,16 @@ const Screener = () => {
                           <Badge variant="secondary">{stock.sector}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {stock.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={stock.changePercent >= 0 ? "text-success" : "text-destructive"}>
-                            {stock.changePercent >= 0 ? "+" : ""}{stock.changePercent.toFixed(2)}%
+                          <span
+                            className={
+                              stock.changePercent >= 0 ? "text-success" : "text-destructive"
+                            }
+                          >
+                            {stock.changePercent >= 0 ? "+" : ""}
+                            {stock.changePercent.toFixed(2)}%
                           </span>
                         </TableCell>
                         <TableCell className="text-right">{stock.pe.toFixed(1)}</TableCell>
@@ -493,7 +592,15 @@ const Screener = () => {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={stock.debtRatio <= 0.5 ? "text-success" : stock.debtRatio > 1 ? "text-destructive" : ""}>
+                          <span
+                            className={
+                              stock.debtRatio <= 0.5
+                                ? "text-success"
+                                : stock.debtRatio > 1
+                                ? "text-destructive"
+                                : ""
+                            }
+                          >
                             {stock.debtRatio.toFixed(2)}
                           </span>
                         </TableCell>
@@ -527,9 +634,7 @@ const Screener = () => {
               <Button variant="ghost" onClick={() => setSaveOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveScreen}>
-                Save
-              </Button>
+              <Button onClick={handleSaveScreen}>Save</Button>
             </div>
           </div>
         </div>
