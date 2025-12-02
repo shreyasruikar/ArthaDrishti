@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, AlertTriangle } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { useStockData } from "@/hooks/useStockData";
+import { apiUrl } from "@/lib/api";
 
 // Mock historical/quarterly data - would come from backend in production
 const historicalData = [
@@ -68,7 +69,7 @@ const StockDetail = () => {
     const fetchStock = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/stocks/detail/${symbol.toUpperCase()}`);
+        const res = await fetch(apiUrl(`/api/stocks/detail/${symbol.toUpperCase()}`));
         if (!res.ok) throw new Error('Stock not found');
         const data = await res.json();
         setStock(data);
@@ -89,7 +90,7 @@ const StockDetail = () => {
 
     const fetchPeers = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/stocks/all`);
+        const res = await fetch(apiUrl('/api/stocks/all'));
         const data = await res.json();
         const peers = data.stocks
           .filter((s: any) => s.sector === stock.sector)
@@ -118,7 +119,7 @@ const StockDetail = () => {
     const fetchRisk = async () => {
       setLoadingRisk(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/risk/assess/${symbol.toUpperCase()}`);
+        const res = await fetch(apiUrl(`/api/risk/assess/${symbol.toUpperCase()}`));
         const data = await res.json();
         setRiskAssessment(data.risk);
       } catch (err) {

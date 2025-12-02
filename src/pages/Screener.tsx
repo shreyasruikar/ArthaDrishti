@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ArrowUp, ArrowDown, Filter, X, GitCompare } from "lucide-react";
 import AISearchBox from "@/components/AISearchBox";
+import { apiUrl } from "@/lib/api";
 
 // All sectors available in the backend
 const sectors = [
@@ -139,7 +140,7 @@ const Screener = () => {
     const fetchAllStocks = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:5000/api/stocks/");
+        const response = await fetch(apiUrl("/api/stocks/"));
         const data = await response.json();
         console.log("✅ Loaded stocks from backend:", data.stocks.length);
         setLiveStockData(data.stocks);

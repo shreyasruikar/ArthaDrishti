@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from "@/lib/api";
 
 export interface StockData {
   symbol: string;
@@ -28,7 +29,7 @@ export const useStockData = (symbols: string[]) => {
         setError(null);
 
         // Call Flask backend instead of Supabase function
-        const response = await fetch('http://localhost:5000/api/stocks/data', {
+        const response = await fetch(apiUrl('/api/stocks/data'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

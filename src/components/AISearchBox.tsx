@@ -5,6 +5,7 @@ import { Search, Sparkles, Loader2, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { apiUrl } from "@/lib/api";
 
 interface AISearchBoxProps {
   onSearch: (filters: any) => void;
@@ -32,7 +33,7 @@ const AISearchBox = ({ onSearch }: AISearchBoxProps) => {
     setParsedFilters(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/stocks/search', {
+      const response = await fetch(apiUrl('/api/stocks/search'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
