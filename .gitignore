@@ -6,7 +6,17 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Environment variables (CRITICAL - Never commit these)
 .env
+.env.local
+.env.production
+.env.development
+.env.test
+*.env
+!.env.example
+
+# Dependencies
 node_modules
 dist
 dist-ssr
@@ -30,7 +40,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Virtual Environment (CRITICAL - Don't commit this!)
+# Virtual Environment
 backend/venv/
 backend/env/
 venv/
@@ -38,3 +48,37 @@ env/
 
 # Backend Environment Variables
 backend/.env
+backend/.env.local
+backend/.env.production
+!backend/.env.example
+
+# Supabase
+supabase/.env
+.supabase/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# API Keys & Secrets
+config/secrets.json
+secrets.json
+credentials.json
+
+# Testing
+coverage/
+.pytest_cache/
+.coverage
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Vercel
+.vercel
+
+# Temporary files
+*.tmp
+*.temp
+.cache
