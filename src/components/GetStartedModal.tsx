@@ -284,7 +284,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                         onClick={() => setShowPwd((s) => !s)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
                       >
-                        {showPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                         {showPwd ? <EyeOff className="w-5 h-5 text-gray-700" /> : <Eye className="w-5 h-5 text-gray-700" />}
                       </button>
                     </div>
 
@@ -313,7 +313,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                     <button
                       type="button"
                       onClick={() => setForm({ name: "", email: "", password: "" })}
-                      className="px-3 py-2 rounded-lg border text-sm"
+                       className="px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-800 bg-white hover:bg-gray-50"
                     >
                       Reset
                     </button>
@@ -323,18 +323,19 @@ export default function GetStartedModal({ open, onClose }: Props) {
             </div>
 
             {/* RIGHT SIDE */}
-            <div className="hidden md:block">
-              <div className="h-full bg-gradient-to-b from-purple-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border">
-                <div className="w-full">
-                  <div className="rounded-lg bg-white p-4 shadow-sm">
-                    <h4 className="text-lg font-semibold mb-1">Why create an account?</h4>
-                    <ul className="text-sm text-gray-600 space-y-2">
-                      <li>• Save your screens & filters</li>
-                      <li>• Export results to CSV</li>
-                      <li>• Personalized watchlists</li>
-                    </ul>
-                  </div>
-                </div>
+           <div className="hidden md:block">
+  <div className="h-full bg-gradient-to-b from-purple-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border border-gray-200">
+    <div className="w-full">
+      <div className="rounded-lg bg-white p-4 shadow-sm border border-gray-100">
+        <h4 className="text-lg font-semibold text-gray-900 mb-1">Why create an account?</h4>
+        <ul className="text-sm text-gray-700 space-y-2">
+          <li>• Save your screens & filters</li>
+          <li>• Export results to CSV</li>
+          <li>• Personalized watchlists</li>
+        </ul>
+      </div>
+    </div>
+
 
                 <div className="mt-6 text-center">
                   {/* FIXED SVG 2 */}
@@ -349,7 +350,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                     <circle cx="132" cy="46" r="6" fill="#8B5CF6" />
                   </svg>
 
-                  <p className="text-xs text-gray-500 mt-3">Fast, visual, and easy — built for retail investors.</p>
+<p className="text-xs text-gray-600 mt-3">Fast, visual, and easy — built for retail investors.</p>
                 </div>
               </div>
             </div>
