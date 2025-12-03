@@ -113,7 +113,7 @@ const Footer = () => {
         <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} ArthaDrishti. All rights reserved.</p>
           <p className="mt-2">
-            Made with ❤️ for Indian retail investors
+            Made with ❤️ By Shreyas, Soham, Rupali
           </p>
         </div>
       </div>

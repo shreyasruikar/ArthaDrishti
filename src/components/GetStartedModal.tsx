@@ -14,14 +14,15 @@ function EmailValid(email: string) {
 
 export default function GetStartedModal({ open, onClose }: Props) {
   const navigate = useNavigate();
-  const { signUp, signIn } = useAuth();
+  const { signUp, signIn, resetPassword } = useAuth();
   const [tab, setTab] = useState<"signup" | "login" | "guest">("signup");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
-  // Lock scroll
   useEffect(() => {
     if (open) {
       const prev = document.body.style.overflow;
@@ -32,17 +33,17 @@ export default function GetStartedModal({ open, onClose }: Props) {
     }
   }, [open]);
 
-  // Reset when closed
   useEffect(() => {
     if (!open) {
       setForm({ name: "", email: "", password: "" });
       setError(null);
       setShowPwd(false);
       setTab("signup");
+      setShowForgotPassword(false);
+      setResetEmail("");
     }
   }, [open]);
 
-  // ESC to close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -70,12 +71,14 @@ export default function GetStartedModal({ open, onClose }: Props) {
 
     try {
       setLoading(true);
-      const { error } = await signUp(form.email, form.password);
+      const { error, message } = await signUp(form.email, form.password);
+
       if (error) {
         handleError(error.message);
       } else {
-        toast.success("Account created! Check your email to verify.");
-        goToScreener();
+        toast.success(message || "Check your email for the verification link!");
+        setForm({ name: "", email: "", password: "" });
+        setTimeout(() => onClose(), 2000);
       }
     } catch (err: any) {
       handleError(err?.message ?? "Signup failed");
@@ -91,6 +94,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
     try {
       setLoading(true);
       const { error } = await signIn(form.email, form.password);
+
       if (error) {
         handleError(error.message);
       } else {
@@ -104,29 +108,52 @@ export default function GetStartedModal({ open, onClose }: Props) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!EmailValid(resetEmail)) return handleError("Please enter a valid email.");
+
+    try {
+      setLoading(true);
+      const { error, message } = await resetPassword(resetEmail);
+
+      if (error) {
+        handleError(error.message);
+      } else {
+        toast.success(message || "Password reset link sent!");
+        setShowForgotPassword(false);
+        setResetEmail("");
+      }
+    } catch (err: any) {
+      handleError(err?.message ?? "Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const continueGuest = () => goToScreener();
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
 
-      {/* overlay */}
+      {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* modal */}
+      {/* Modal */}
       <div
         className="relative z-10 w-full max-w-3xl rounded-2xl overflow-hidden shadow-[0_30px_60px_rgba(2,6,23,0.45)] bg-white"
         role="dialog"
         aria-modal="true"
         aria-label="Get Started"
       >
+
         {/* HEADER */}
         <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-400">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center shadow-md">
+              {/* FIXED SVG 1 */}
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="transform -rotate-12">
                 <path d="M3 21s3-1 4-4 3-6 6-6 6 1 6 1" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M7 10l5-5 3 3-5 5-3-3z" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -134,7 +161,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
               </svg>
             </div>
 
-            <div className="min-w-0">
+            <div>
               <h2 className="text-white text-lg font-semibold truncate">Welcome to ArthaDrishti</h2>
               <p className="text-white/90 text-sm truncate">Powerful screener, made friendly.</p>
             </div>
@@ -181,12 +208,14 @@ export default function GetStartedModal({ open, onClose }: Props) {
           {/* CONTENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* LEFT SIDE */}
+            {/* LEFT */}
             <div>
               {tab === "guest" ? (
                 <div className="space-y-4">
                   <p className="text-gray-700">Try the screener with sample data. Save screens after creating an account.</p>
-                  <Button onClick={continueGuest} className="w-full py-2.5 text-base">Continue as Guest</Button>
+                  <Button onClick={continueGuest} className="w-full py-2.5 text-base">
+                    Continue as Guest
+                  </Button>
                   <div className="mt-2 text-center">
                     <button onClick={() => setTab("signup")} className="text-sm text-gray-600 hover:underline">
                       Create account
@@ -206,7 +235,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
                         placeholder="How should we call you?"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
                       />
                     </label>
                   )}
@@ -222,8 +251,7 @@ export default function GetStartedModal({ open, onClose }: Props) {
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       placeholder="you@company.com"
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2"
                     />
                     {!EmailValid(form.email) && form.email.length > 0 && (
                       <p className="text-xs text-rose-600 mt-1">Please enter a valid email.</p>
@@ -249,13 +277,12 @@ export default function GetStartedModal({ open, onClose }: Props) {
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
                         placeholder="Create a strong password"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-12 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-12"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPwd((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-600 hover:bg-gray-100"
-                        aria-label={showPwd ? "Hide password" : "Show password"}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1"
                       >
                         {showPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -266,7 +293,18 @@ export default function GetStartedModal({ open, onClose }: Props) {
                     )}
                   </label>
 
-                  {/* BUTTONS */}
+                  {tab === "login" && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-sm text-purple-600 hover:underline"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3">
                     <Button type="submit" className="flex-1 py-2.5" disabled={loading}>
                       {loading ? "Processing..." : tab === "signup" ? "Create account" : "Login"}
@@ -275,22 +313,21 @@ export default function GetStartedModal({ open, onClose }: Props) {
                     <button
                       type="button"
                       onClick={() => setForm({ name: "", email: "", password: "" })}
-                      className="px-3 py-2 rounded-lg border text-sm text-gray-700 hover:bg-gray-50"
+                      className="px-3 py-2 rounded-lg border text-sm"
                     >
                       Reset
                     </button>
                   </div>
-
                 </form>
               )}
             </div>
 
             {/* RIGHT SIDE */}
             <div className="hidden md:block">
-              <div className="h-full bg-gradient-to-b from-purple-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border border-gray-100">
+              <div className="h-full bg-gradient-to-b from-purple-50 to-white rounded-lg p-4 flex flex-col items-center justify-between border">
                 <div className="w-full">
                   <div className="rounded-lg bg-white p-4 shadow-sm">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-1">Why create an account?</h4>
+                    <h4 className="text-lg font-semibold mb-1">Why create an account?</h4>
                     <ul className="text-sm text-gray-600 space-y-2">
                       <li>• Save your screens & filters</li>
                       <li>• Export results to CSV</li>
@@ -300,9 +337,15 @@ export default function GetStartedModal({ open, onClose }: Props) {
                 </div>
 
                 <div className="mt-6 text-center">
-                  <svg width="160" height="120" viewBox="0 0 160 120" fill="none" className="mx-auto">
+                  {/* FIXED SVG 2 */}
+                  <svg width="160" height="120" viewBox="0 0 160 120" fill="none">
                     <rect x="6" y="20" width="148" height="84" rx="12" fill="#F3E8FF" />
-                    <path d="M22 84c18-24 48-24 66-6s44 12 56-6" stroke="#A78BFA" strokeWidth="2.5" strokeLinecap="round" />
+                    <path
+                      d="M22 84c18-24 48-24 66-6s44 12 56-6"
+                      stroke="#A78BFA"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
                     <circle cx="132" cy="46" r="6" fill="#8B5CF6" />
                   </svg>
 
@@ -312,10 +355,43 @@ export default function GetStartedModal({ open, onClose }: Props) {
             </div>
           </div>
 
+          {/* FORGOT PASSWORD */}
+          {showForgotPassword && (
+            <div className="mt-6 p-4 border border-purple-200 rounded-lg bg-purple-50">
+              <h3 className="font-semibold mb-2">Reset Password</h3>
+              <p className="text-sm mb-3">Enter your email to receive a reset link</p>
+
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 mb-3"
+              />
+
+              <div className="flex gap-2">
+                <Button onClick={handleForgotPassword} disabled={loading} className="flex-1">
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </Button>
+
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail("");
+                  }}
+                  className="px-4 py-2 rounded-lg border text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ERROR MSG */}
           {error && (
             <div className="mt-4 text-sm text-rose-600 font-medium flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" className="text-rose-600">
+              {/* FIXED SVG 3 */}
+              <svg width="16" height="16" viewBox="0 0 24 24">
                 <path d="M12 9v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
                 <circle cx="12" cy="16" r="1" fill="currentColor" />
               </svg>

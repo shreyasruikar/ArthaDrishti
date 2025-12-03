@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext"; // <-- make sure path matches your file
+import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Screener from "./pages/Screener";
 import StockDetail from "./pages/StockDetail";
@@ -16,14 +16,14 @@ import Portfolio from "./pages/Portfolio";
 import Screens from "./pages/Screens";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
-
+import ResetPassword from './pages/ResetPassword';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const queryClient = new QueryClient();
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Put AuthProvider high so all routes/components can consume it */}
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -35,12 +35,34 @@ export default function App() {
               <Route path="/screens" element={<Screens />} /> 
               <Route path="/stock/:symbol" element={<StockDetail />} />
               <Route path="/compare" element={<Comparison />} />
-              <Route path="/portfolio" element={<Portfolio />} />  {/* ADD THIS LINE */}
               <Route path="/auth" element={<Auth />} />
-              <Route path="/watchlist" element={<Watchlist />} />
-              <Route path="*" element={<NotFound />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
+              
+              {/* Reset Password Route */}
+              <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Protected Routes - Require Authentication */}
+              <Route 
+                path="/portfolio" 
+                element={
+                  <ProtectedRoute>
+                    <Portfolio />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/watchlist" 
+                element={
+                  <ProtectedRoute>
+                    <Watchlist />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* 404 - Keep this last */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

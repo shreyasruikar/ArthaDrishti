@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string) => Promise<{ error: any; message?: string }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any; message?: string }>;
   loading: boolean;
 }
 
@@ -59,16 +60,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Use production URL when deployed, localhost when developing
+    const baseUrl = import.meta.env.PROD 
+      ? 'https://artha-drishti.vercel.app'
+      : window.location.origin;
     
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: baseUrl
       }
     });
-    return { error };
+
+    if (error) {
+      return { error };
+    }
+
+    return { 
+      error: null, 
+      message: "✅ Check your email for the verification link!" 
+    };
+  };
+
+  const resetPassword = async (email: string) => {
+    // Use production URL when deployed, localhost when developing
+    const baseUrl = import.meta.env.PROD 
+      ? 'https://artha-drishti.vercel.app'
+      : window.location.origin;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${baseUrl}/reset-password`,
+    });
+
+    if (error) {
+      return { error };
+    }
+
+    return {
+      error: null,
+      message: "✅ Password reset link sent to your email!"
+    };
   };
 
   const signOut = async () => {
@@ -76,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, loading }}>
+    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut, resetPassword, loading }}>
       {children}
     </AuthContext.Provider>
   );
